@@ -142,14 +142,12 @@
       if (googleSheetUrl) {
         document.getElementById('sheet-url-input').value = googleSheetUrl;
         document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
-        // Tự động lấy dữ liệu mới nhất từ Google Sheet khi mở app
         fetchFromGoogleSheet();
       }
     }
 
     function saveDB() {
       localStorage.setItem('app_inventory_db', JSON.stringify(db));
-      // Tự động đẩy dữ liệu lên Google Sheet mỗi khi có thay đổi
       syncToGoogleSheet();
     }
 
@@ -159,7 +157,6 @@
         await fetch(googleSheetUrl, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(db)
         });
       } catch(err) {
