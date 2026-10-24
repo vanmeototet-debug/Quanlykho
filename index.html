@@ -66,7 +66,7 @@
         <i data-lucide="package" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Sản phẩm</span>
       </button>
-      <button onclick="switchTab('sales')" id="nav-sales" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
+      <button onclick="switchTab('sales')" id="nav-sales" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
         <i data-lucide="shopping-cart" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Bán hàng</span>
       </button>
@@ -74,7 +74,7 @@
         <i data-lucide="gift" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Biếu tặng</span>
       </button>
-      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
         <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Báo cáo</span>
       </button>
@@ -317,7 +317,7 @@
     }
 
     // ==========================================
-    // 2. SALES TAB (BÁN HÀNG) - NHẬP TỔNG TIỀN
+    // 2. SALES TAB (BÁN HÀNG)
     // ==========================================
     function renderSales() {
       const container = document.getElementById('app-content');
@@ -667,7 +667,7 @@
     }
 
     // ==========================================
-    // 4. REPORTS TAB (BÁO CÁO TỔNG HỢP)
+    // 4. REPORTS TAB (BÁO CÁO TỔNG HỢP & CHI TIẾT)
     // ==========================================
     function renderReports() {
       const container = document.getElementById('app-content');
@@ -737,19 +737,21 @@
           const itemSales = validSales.filter(s => s.productId === p.id);
           const soldQty = itemSales.reduce((sum, s) => sum + s.qty, 0);
           const itemRevenue = itemSales.reduce((sum, s) => sum + s.totalRevenue, 0);
-          const itemCost = itemSales.reduce((sum, s) => sum + s.totalCost, 0);
-          const itemProfit = itemRevenue - itemCost;
 
           const itemGiveaways = validGiveaways.filter(g => g.productId === p.id);
           const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
           const giveawayVal = itemGiveaways.reduce((sum, g) => sum + g.costValue, 0);
 
+          // Tính Lãi = Tổng bán - Tổng nhập
+          const itemTotalImportCost = p.totalImportCost || 0;
+          const itemRealProfit = itemRevenue - itemTotalImportCost;
+
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
-              <div class="flex justify-between items-center">
+              <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span class="font-bold text-slate-900 text-base">${p.name}</span>
-                <span class="text-xs font-semibold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                  Lãi bán: ${formatMoney(itemProfit)}
+                <span class="text-xs font-bold ${itemRealProfit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
+                  Lãi (Bán - Nhập): ${formatMoney(itemRealProfit)}
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
@@ -759,9 +761,9 @@
                   <p>Đã Biếu: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
                   <p>Tồn Kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
                 </div>
-                <div class="text-right">
-                  <p>Doanh thu: <b class="text-slate-700">${formatMoney(itemRevenue)}</b></p>
-                  <p>Vốn đã bán: <b class="text-slate-700">${formatMoney(itemCost)}</b></p>
+                <div class="text-right space-y-0.5">
+                  <p>Tổng tiền nhập: <b class="text-slate-800">${formatMoney(itemTotalImportCost)}</b></p>
+                  <p>Tổng tiền bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
                   <p>Vốn biếu tặng: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
                 </div>
               </div>
@@ -786,7 +788,7 @@
 
     window.onload = function() {
       loadDB();
-      renderProducts();
+      switchTab('reports');
     };
   </script>
 </body>
