@@ -151,33 +151,54 @@
       syncToGoogleSheet();
     }
 
-    async function syncToGoogleSheet() {
+    // Đẩy dữ liệu lên Google Sheet qua Form ẩn (Bỏ qua lỗi CORS & Redirect)
+    function syncToGoogleSheet() {
       if (!googleSheetUrl) return;
-      try {
-        await fetch(googleSheetUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify(db)
-        });
-      } catch(err) {
-        console.error("Lỗi đồng bộ Google Sheet", err);
+      let form = document.getElementById('hidden-sync-form');
+      if (!form) {
+        form = document.createElement('form');
+        form.id = 'hidden-sync-form';
+        form.method = 'POST';
+        form.action = googleSheetUrl;
+        form.target = 'hidden-iframe';
+        form.style.display = 'none';
+        
+        let input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.id = 'hidden-sync-payload';
+        form.appendChild(input);
+        
+        let iframe = document.createElement('iframe');
+        iframe.name = 'hidden-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
       }
+      document.getElementById('hidden-sync-payload').value = JSON.stringify(db);
+      form.submit();
     }
 
-    async function fetchFromGoogleSheet() {
+    // Lấy dữ liệu từ Google Sheet qua JSONP (Bỏ qua lỗi CORS)
+    function fetchFromGoogleSheet() {
       if (!googleSheetUrl) return;
-      try {
-        const res = await fetch(googleSheetUrl);
-        const data = await res.json();
+      const scriptId = 'jsonp-script';
+      let oldScript = document.getElementById(scriptId);
+      if (oldScript) oldScript.remove();
+
+      window.handleSheetData = function(data) {
         if (data && data.products) {
           db = data;
           if (!db.giveaways) db.giveaways = [];
           localStorage.setItem('app_inventory_db', JSON.stringify(db));
           switchTab(currentTab);
         }
-      } catch(err) {
-        console.error("Lỗi lấy dữ liệu Google Sheet", err);
-      }
+      };
+
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = googleSheetUrl + (googleSheetUrl.includes('?') ? '&' : '?') + 'callback=handleSheetData&t=' + Date.now();
+      document.body.appendChild(script);
     }
 
     function saveSheetUrl() {
