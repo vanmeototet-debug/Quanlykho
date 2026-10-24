@@ -49,25 +49,54 @@
     <div class="px-4 py-3 flex items-center justify-between">
       <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
       <div class="flex items-center gap-1">
-        <!-- Nút Nhập (Upload) dữ liệu -->
-        <label class="p-2 text-ios-blue hover:bg-slate-100 rounded-full transition-colors cursor-pointer" title="Nhập dữ liệu từ máy khác">
-          <i data-lucide="upload" class="w-5 h-5"></i>
-          <input type="file" id="import-file" accept=".json" onchange="importData(event)" class="hidden">
-        </label>
-        <!-- Nút Xuất (Download) dữ liệu -->
-        <button onclick="exportData()" class="p-2 text-ios-blue hover:bg-slate-100 rounded-full transition-colors" title="Xuất dữ liệu dự phòng">
-          <i data-lucide="download" class="w-5 h-5"></i>
+        <!-- Nút Cài đặt Google Sheet URL -->
+        <button onclick="toggleSheetModal(true)" class="p-2 text-ios-green hover:bg-slate-100 rounded-full transition-colors relative" title="Kết nối Google Sheets">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+          <span id="sheet-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-slate-300 rounded-full"></span>
+        </button>
+        <!-- Nút Xuất dự phòng -->
+        <button onclick="exportData()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors" title="Xuất file JSON dự phòng">
+          <i data-lucide="download" class="w-4 h-4"></i>
         </button>
       </div>
     </div>
   </header>
+
+  <!-- Modal Cài đặt Google Sheets -->
+  <div id="sheet-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5 text-ios-green"></i> Google Sheets Online
+        </h3>
+        <button onclick="toggleSheetModal(false)" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">
+        Dán đường link <b>Apps Script Web App URL</b> từ Google Sheet của bạn vào đây để đồng bộ tự động online.
+      </p>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Google Web App URL</label>
+        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
+      </div>
+      <div class="pt-2 space-y-2">
+        <button onclick="saveSheetUrl()" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:opacity-90">
+          <i data-lucide="check" class="w-4 h-4"></i> Lưu & Đồng bộ ngay
+        </button>
+        <button onclick="toggleSheetModal(false)" class="w-full bg-slate-100 text-slate-700 font-medium py-2.5 rounded-xl text-xs">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Main Content Area -->
   <main class="flex-1 overflow-y-auto p-4 pb-24" id="app-content">
     <!-- Dynamic Content injected by JS -->
   </main>
 
-  <!-- Bottom Navigation Bar (4 Tabs) -->
+  <!-- Bottom Navigation Bar -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 pb-safe">
     <div class="flex justify-around items-center h-16 px-1">
       <button onclick="switchTab('products')" id="nav-products" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
@@ -97,6 +126,8 @@
       giveaways: []
     };
 
+    let googleSheetUrl = '';
+
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
       if (stored) {
@@ -107,10 +138,63 @@
           console.error("Lỗi đọc dữ liệu local", e);
         }
       }
+      googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
+      if (googleSheetUrl) {
+        document.getElementById('sheet-url-input').value = googleSheetUrl;
+        document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+        // Tự động lấy dữ liệu mới nhất từ Google Sheet khi mở app
+        fetchFromGoogleSheet();
+      }
     }
 
     function saveDB() {
       localStorage.setItem('app_inventory_db', JSON.stringify(db));
+      // Tự động đẩy dữ liệu lên Google Sheet mỗi khi có thay đổi
+      syncToGoogleSheet();
+    }
+
+    async function syncToGoogleSheet() {
+      if (!googleSheetUrl) return;
+      try {
+        await fetch(googleSheetUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(db)
+        });
+      } catch(err) {
+        console.error("Lỗi đồng bộ Google Sheet", err);
+      }
+    }
+
+    async function fetchFromGoogleSheet() {
+      if (!googleSheetUrl) return;
+      try {
+        const res = await fetch(googleSheetUrl);
+        const data = await res.json();
+        if (data && data.products) {
+          db = data;
+          if (!db.giveaways) db.giveaways = [];
+          localStorage.setItem('app_inventory_db', JSON.stringify(db));
+          switchTab(currentTab);
+        }
+      } catch(err) {
+        console.error("Lỗi lấy dữ liệu Google Sheet", err);
+      }
+    }
+
+    function saveSheetUrl() {
+      const url = document.getElementById('sheet-url-input').value.trim();
+      if (!url) {
+        alert("Vui lòng nhập đường link Web App URL!");
+        return;
+      }
+      googleSheetUrl = url;
+      localStorage.setItem('app_google_sheet_url', googleSheetUrl);
+      document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+      fetchFromGoogleSheet();
+      alert("Đã kết nối thành công với Google Sheets!");
+      toggleSheetModal(false);
     }
 
     function formatMoney(num) {
@@ -127,6 +211,13 @@
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toggleSheetModal(show) {
+      const modal = document.getElementById('sheet-modal');
+      if (show) modal.classList.remove('hidden');
+      else modal.classList.add('hidden');
+      lucide.createIcons();
     }
 
     let currentTab = 'products';
@@ -162,7 +253,7 @@
     }
 
     // ==========================================
-    // 1. PRODUCTS TAB (SẢN PHẨM & TỒN K kho)
+    // 1. PRODUCTS TAB (SẢN PHẨM & TỒN KHO)
     // ==========================================
     function renderProducts() {
       const container = document.getElementById('app-content');
@@ -783,7 +874,6 @@
       container.innerHTML = html;
     }
 
-    // Xuất dữ liệu ra file JSON
     function exportData() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
       const downloadAnchor = document.createElement('a');
@@ -792,34 +882,6 @@
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-    }
-
-    // Nhập dữ liệu từ file JSON
-    function importData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const importedDB = JSON.parse(e.target.result);
-          if (importedDB && importedDB.products) {
-            if (confirm("Xác nhận khôi phục dữ liệu? Dữ liệu hiện tại trên thiết bị này sẽ được ghi đè bằng file bạn vừa chọn.")) {
-              db = importedDB;
-              if (!db.giveaways) db.giveaways = [];
-              saveDB();
-              switchTab(currentTab);
-              alert("Đồng bộ và khôi phục dữ liệu thành công!");
-            }
-          } else {
-            alert("File dữ liệu không hợp lệ!");
-          }
-        } catch(err) {
-          alert("Lỗi đọc file JSON!");
-          console.error(err);
-        }
-        event.target.value = '';
-      };
-      reader.readAsText(file);
     }
 
     window.onload = function() {
