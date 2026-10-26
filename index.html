@@ -127,7 +127,7 @@
     };
 
     let googleSheetUrl = '';
-    let selectedReportMonth = 'ALL'; // Mặc định hiển thị tổng hợp tất cả các tháng
+    let selectedReportMonth = 'ALL';
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -152,7 +152,6 @@
       syncToGoogleSheet();
     }
 
-    // Đẩy dữ liệu lên Google Sheet qua Form ẩn
     function syncToGoogleSheet() {
       if (!googleSheetUrl) return;
       let form = document.getElementById('hidden-sync-form');
@@ -180,7 +179,6 @@
       form.submit();
     }
 
-    // Lấy dữ liệu từ Google Sheet qua JSONP
     function fetchFromGoogleSheet() {
       if (!googleSheetUrl) return;
       const scriptId = 'jsonp-script';
@@ -264,7 +262,7 @@
         titleEl.innerText = 'Quản lý Biếu tặng';
         renderGiveaways();
       } else if (tab === 'reports') {
-        titleEl.innerText = 'Báo cáo & Biểu đồ Tháng';
+        titleEl.innerText = 'Báo cáo & Phân tích';
         renderReports();
       }
 
@@ -523,7 +521,7 @@
                 <div>
                   <p class="text-sm font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
                   <p class="text-xs font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                    Lãi: ${formatMoney(s.profit)}
+                    Lãi: ${formatMoney(s.profit)} (${s.marginPercent}%)
                   </p>
                 </div>
                 <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán">
@@ -600,6 +598,7 @@
       const totalCost = qty * prod.avgImportCost;
       const profit = totalRevenue - totalCost;
       const actualUnitPrice = totalRevenue / qty;
+      const marginPercent = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
 
       prod.currentStock -= qty;
 
@@ -611,7 +610,8 @@
         totalRevenue,
         actualUnitPrice,
         totalCost,
-        profit
+        profit,
+        marginPercent
       });
 
       saveDB();
@@ -785,7 +785,7 @@
     }
 
     // ==========================================
-    // 4. REPORTS TAB (BÁO CÁO & BIỂU ĐỒ THÁNG)
+    // 4. REPORTS TAB (BÁO CÁO & PHÂN TÍCH LÃI %)
     // ==========================================
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
@@ -799,12 +799,12 @@
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
       const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
 
-      // Gom nhóm dữ liệu theo từng tháng (Định dạng "YYYY-MM")
+      // Gom nhóm theo tháng (YYYY-MM)
       let monthlyMap = {};
 
       validSales.forEach(s => {
         if (!s.date) return;
-        const mKey = s.date.substring(0, 7); // Lấy chuỗi "2026-10"
+        const mKey = s.date.substring(0, 7);
         if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0 };
         monthlyMap[mKey].revenue += (s.totalRevenue || 0);
         monthlyMap[mKey].cost += (s.totalCost || 0);
@@ -820,7 +820,7 @@
 
       const sortedMonths = Object.keys(monthlyMap).sort().reverse();
 
-      // Lọc danh sách giao dịch theo tháng được chọn
+      // Lọc giao dịch theo tháng được chọn
       let filteredSales = validSales;
       let filteredGiveaways = validGiveaways;
 
@@ -838,12 +838,13 @@
         totalProfit += (s.profit || 0);
       });
 
+      const avgProfitMargin = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(1) : 0;
+
       let totalGiveawayValue = 0;
       filteredGiveaways.forEach(g => {
         totalGiveawayValue += (g.costValue || 0);
       });
 
-      // Tạo các tùy chọn tháng cho ô chọn Dropdown
       let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
       sortedMonths.forEach(m => {
         const parts = m.split('-');
@@ -860,7 +861,7 @@
           </select>
         </div>
 
-        <!-- BIỂU ĐỒ TỔNG QUAN DOANH THU CÁC THÁNG -->
+        <!-- BIỂU ĐỒ CỘT NGANG SO SÁNH CÁC THÁNG -->
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
           <h2 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
             <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng
@@ -868,9 +869,8 @@
       `;
 
       if (sortedMonths.length === 0) {
-        html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu bán hàng để vẽ biểu đồ</p>`;
+        html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu giao dịch để vẽ biểu đồ</p>`;
       } else {
-        // Tìm doanh thu lớn nhất để tính tỉ lệ phần trăm thanh biểu đồ
         let maxRev = 1;
         sortedMonths.forEach(m => {
           if (monthlyMap[m].revenue > maxRev) maxRev = monthlyMap[m].revenue;
@@ -882,12 +882,13 @@
           const parts = m.split('-');
           const mLabel = `Tháng ${parts[1]}/${parts[0]}`;
           const revPercent = Math.round((data.revenue / maxRev) * 100);
+          const monthMargin = data.cost > 0 ? ((data.profit / data.cost) * 100).toFixed(1) : 0;
 
           html += `
             <div class="bg-slate-50 p-3 rounded-xl space-y-2">
               <div class="flex justify-between items-center text-xs">
                 <span class="font-bold text-slate-800">${mLabel}</span>
-                <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)}</span>
+                <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)} (<b class="text-ios-blue">+${monthMargin}%</b>)</span>
               </div>
               <div class="space-y-1.5">
                 <div>
@@ -932,7 +933,7 @@
 
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
-              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Kinh Doanh</p>
+              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Kinh Doanh (<b class="text-ios-green">+${avgProfitMargin}%</b> trên vốn)</p>
               <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
             </div>
             <div class="w-10 h-10 ${totalProfit >= 0 ? 'bg-emerald-50 text-ios-green' : 'bg-red-50 text-red-500'} rounded-full flex items-center justify-center">
@@ -952,7 +953,7 @@
         </div>
 
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết theo từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết lãi % theo từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
       `;
 
       if (db.products.length === 0) {
@@ -968,6 +969,7 @@
           const itemRevenue = itemSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
           const itemCost = itemSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
           const itemProfit = itemSales.reduce((sum, s) => sum + (s.profit || 0), 0);
+          const itemMargin = itemCost > 0 ? ((itemProfit / itemCost) * 100).toFixed(1) : 0;
 
           const itemGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
           const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
@@ -977,8 +979,8 @@
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span class="font-bold text-slate-900 text-base">${p.name}</span>
-                <span class="text-xs font-bold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                  Lãi: ${formatMoney(itemProfit)}
+                <span class="text-xs font-bold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} bg-emerald-50 px-2.5 py-1 rounded-full">
+                  Lãi: ${formatMoney(itemProfit)} (+${itemMargin}%)
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
