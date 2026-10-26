@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>iStock iOS - Quản lý Kho</title>
+  <title>Quản lý Bán hàng & Tồn kho</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -45,12 +45,9 @@
 <body class="h-full font-sans antialiased text-slate-800 flex flex-col bg-ios-bg">
 
   <!-- Header -->
-  <header class="bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe shadow-xs">
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe">
     <div class="px-4 py-3 flex items-center justify-between">
-      <div>
-        <h1 class="text-lg font-bold text-slate-900 tracking-tight" id="page-title">Tổng quan</h1>
-        <p class="text-[11px] text-slate-400">iStock iOS - Quản lý Kho & Bán Hàng</p>
-      </div>
+      <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
       <div class="flex items-center gap-1">
         <!-- Nút Cài đặt Google Sheet URL -->
         <button onclick="toggleSheetModal(true)" class="p-2 text-ios-green hover:bg-slate-100 rounded-full transition-colors relative" title="Kết nối Google Sheets">
@@ -69,7 +66,7 @@
   <div id="sheet-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl space-y-4">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
           <i data-lucide="file-spreadsheet" class="w-5 h-5 text-ios-green"></i> Google Sheets Online
         </h3>
         <button onclick="toggleSheetModal(false)" class="text-slate-400 hover:text-slate-600 p-1">
@@ -77,11 +74,11 @@
         </button>
       </div>
       <p class="text-xs text-slate-500">
-        Dán đường link <b>Apps Script Web App URL</b> từ Google Sheet chính của bạn vào đây để đồng bộ tự động 2 chiều.
+        Dán đường link <b>Apps Script Web App URL</b> từ Google Sheet của bạn vào đây để đồng bộ tự động online.
       </p>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Google Web App URL</label>
-        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
+        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
       </div>
       <div class="pt-2 space-y-2">
         <button onclick="saveSheetUrl()" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:opacity-90">
@@ -95,28 +92,28 @@
   </div>
 
   <!-- Main Content Area -->
-  <main class="flex-1 overflow-y-auto p-4 pb-28" id="app-content">
-    <!-- Nội dung sẽ được hiển thị ở đây -->
+  <main class="flex-1 overflow-y-auto p-4 pb-24" id="app-content">
+    <!-- Dynamic Content injected by JS -->
   </main>
 
   <!-- Bottom Navigation Bar -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 pb-safe shadow-lg">
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 pb-safe">
     <div class="flex justify-around items-center h-16 px-1">
-      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
-        <i data-lucide="pie-chart" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Tổng quan</span>
-      </button>
-      <button onclick="switchTab('inventory')" id="nav-inventory" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
-        <i data-lucide="boxes" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Kho hàng</span>
+      <button onclick="switchTab('products')" id="nav-products" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="package" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Sản phẩm</span>
       </button>
       <button onclick="switchTab('sales')" id="nav-sales" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
         <i data-lucide="shopping-cart" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Bán hàng</span>
+        <span class="text-[9px] font-medium mt-1">Bán hàng</span>
       </button>
-      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+      <button onclick="switchTab('giveaways')" id="nav-giveaways" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="gift" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Biếu tặng</span>
+      </button>
+      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
         <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Báo cáo & Tháng</span>
+        <span class="text-[9px] font-medium mt-1">Báo cáo</span>
       </button>
     </div>
   </nav>
@@ -126,46 +123,36 @@
     let db = {
       products: [], 
       sales: [],
-      imports: []
+      giveaways: []
     };
 
     let googleSheetUrl = '';
-    let selectedReportMonth = 'ALL';
-
-    function getProductsList() {
-      return db.products && db.products.length > 0 ? db.products : (db.items || []);
-    }
+    let selectedReportMonth = 'ALL'; // Mặc định hiển thị tổng hợp tất cả các tháng
 
     function loadDB() {
-      const stored = localStorage.getItem('app_quanlykho_db');
+      const stored = localStorage.getItem('app_inventory_db');
       if (stored) {
         try {
           db = JSON.parse(stored);
-          if (!db.products && db.items) db.products = db.items;
-          if (!db.products) db.products = [];
-          if (!db.sales) db.sales = [];
-          if (!db.imports) db.imports = [];
+          if (!db.giveaways) db.giveaways = [];
         } catch(e) {
           console.error("Lỗi đọc dữ liệu local", e);
         }
       }
-      googleSheetUrl = localStorage.getItem('app_quanlykho_sheet_url') || '';
+      googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
       if (googleSheetUrl) {
-        const urlInput = document.getElementById('sheet-url-input');
-        if(urlInput) urlInput.value = googleSheetUrl;
-        const sheetDot = document.getElementById('sheet-dot');
-        if(sheetDot) sheetDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+        document.getElementById('sheet-url-input').value = googleSheetUrl;
+        document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
         fetchFromGoogleSheet();
-      } else {
-        switchTab(currentTab);
       }
     }
 
     function saveDB() {
-      localStorage.setItem('app_quanlykho_db', JSON.stringify(db));
+      localStorage.setItem('app_inventory_db', JSON.stringify(db));
       syncToGoogleSheet();
     }
 
+    // Đẩy dữ liệu lên Google Sheet qua Form ẩn
     function syncToGoogleSheet() {
       if (!googleSheetUrl) return;
       let form = document.getElementById('hidden-sync-form');
@@ -193,6 +180,7 @@
       form.submit();
     }
 
+    // Lấy dữ liệu từ Google Sheet qua JSONP
     function fetchFromGoogleSheet() {
       if (!googleSheetUrl) return;
       const scriptId = 'jsonp-script';
@@ -200,13 +188,10 @@
       if (oldScript) oldScript.remove();
 
       window.handleSheetData = function(data) {
-        if (data && (data.products || data.items)) {
+        if (data && data.products) {
           db = data;
-          if (!db.products && db.items) db.products = db.items;
-          if (!db.products) db.products = [];
-          if (!db.sales) db.sales = [];
-          if (!db.imports) db.imports = [];
-          localStorage.setItem('app_quanlykho_db', JSON.stringify(db));
+          if (!db.giveaways) db.giveaways = [];
+          localStorage.setItem('app_inventory_db', JSON.stringify(db));
           switchTab(currentTab);
         }
       };
@@ -224,9 +209,8 @@
         return;
       }
       googleSheetUrl = url;
-      localStorage.setItem('app_quanlykho_sheet_url', googleSheetUrl);
-      const sheetDot = document.getElementById('sheet-dot');
-      if(sheetDot) sheetDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+      localStorage.setItem('app_google_sheet_url', googleSheetUrl);
+      document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
       fetchFromGoogleSheet();
       alert("Đã kết nối thành công với Google Sheets!");
       toggleSheetModal(false);
@@ -255,174 +239,116 @@
       lucide.createIcons();
     }
 
-    let currentTab = 'dashboard';
+    let currentTab = 'products';
 
     function switchTab(tab) {
       currentTab = tab;
       
-      ['dashboard', 'inventory', 'sales', 'reports'].forEach(t => {
+      ['products', 'sales', 'giveaways', 'reports'].forEach(t => {
         const btn = document.getElementById(`nav-${t}`);
-        if(btn) {
-          if (t === tab) {
-            btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue';
-          } else {
-            btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
-          }
+        if (t === tab) {
+          btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue';
+        } else {
+          btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
         }
       });
 
       const titleEl = document.getElementById('page-title');
-      if (titleEl) {
-        if (tab === 'dashboard') {
-          titleEl.innerText = 'Tổng quan';
-          renderDashboard();
-        } else if (tab === 'inventory') {
-          titleEl.innerText = 'Kho hàng';
-          renderInventory();
-        } else if (tab === 'sales') {
-          titleEl.innerText = 'Bán hàng';
-          renderSales();
-        } else if (tab === 'reports') {
-          titleEl.innerText = 'Báo cáo & Tháng';
-          renderReports();
-        }
+      if (tab === 'products') {
+        titleEl.innerText = 'Sản phẩm & Tồn kho';
+        renderProducts();
+      } else if (tab === 'sales') {
+        titleEl.innerText = 'Nhật ký Bán hàng';
+        renderSales();
+      } else if (tab === 'giveaways') {
+        titleEl.innerText = 'Quản lý Biếu tặng';
+        renderGiveaways();
+      } else if (tab === 'reports') {
+        titleEl.innerText = 'Báo cáo & Biểu đồ Tháng';
+        renderReports();
       }
 
       lucide.createIcons();
     }
 
     // ==========================================
-    // 1. DASHBOARD TAB
+    // 1. PRODUCTS TAB (SẢN PHẨM & TỒN KHO)
     // ==========================================
-    function renderDashboard() {
+    function renderProducts() {
       const container = document.getElementById('app-content');
-      if(!container) return;
-
-      const products = getProductsList();
-      let totalStockVal = 0;
-      products.forEach(p => {
-        const cost = p.avgImportCost || p.unitCost || 0;
-        totalStockVal += (p.currentStock || 0) * cost;
-      });
-
-      let totalRevToday = 0;
-      let totalProfitToday = 0;
-      let totalCostToday = 0;
-      const todayStr = getTodayString();
-
-      db.sales.forEach(s => {
-        if (s.date === todayStr) {
-          totalRevToday += (s.totalRevenue !== undefined ? s.totalRevenue : s.revenue || 0);
-          totalProfitToday += (s.profit || 0);
-          totalCostToday += (s.totalCost || 0);
-        }
-      });
-
-      let html = `
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <p class="text-[11px] text-slate-400 font-medium">Doanh thu hôm nay</p>
-            <p class="text-base font-extrabold text-slate-900 mt-1">${formatMoney(totalRevToday)}</p>
-          </div>
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <p class="text-[11px] text-slate-400 font-medium">Vốn bán hôm nay</p>
-            <p class="text-base font-extrabold text-amber-600 mt-1">${formatMoney(totalCostToday)}</p>
-          </div>
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <p class="text-[11px] text-slate-400 font-medium">Lợi nhuận hôm nay</p>
-            <p class="text-base font-extrabold text-ios-green mt-1">${formatMoney(totalProfitToday)}</p>
-          </div>
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <p class="text-[11px] text-slate-400 font-medium">Giá trị tồn kho</p>
-            <p class="text-base font-extrabold text-ios-blue mt-1">${formatMoney(totalStockVal)}</p>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-          <h2 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <i data-lucide="zap" class="w-4 h-4 text-ios-orange"></i> Trạng thái kho hàng
-          </h2>
-          <div class="text-xs text-slate-500 space-y-1">
-            <p>Tổng số mặt hàng trong kho: <b class="text-slate-800">${products.length}</b></p>
-            <p>Tổng số đơn bán hôm nay: <b class="text-slate-800">${db.sales.filter(s => s.date === todayStr).length} đơn</b></p>
-          </div>
-        </div>
-      `;
-      container.innerHTML = html;
-    }
-
-    // ==========================================
-    // 2. INVENTORY TAB (KHO HÀNG)
-    // ==========================================
-    function renderInventory() {
-      const container = document.getElementById('app-content');
-      if(!container) return;
-
-      const products = getProductsList();
-
+      
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
-          <h2 class="text-sm font-bold mb-3 flex items-center text-slate-800">
-            <i data-lucide="plus-circle" class="w-4 h-4 mr-2 text-ios-blue"></i> Nhập / Thêm mặt hàng mới
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập thêm sản phẩm
           </h2>
           <form onsubmit="handleAddProduct(event)" class="space-y-3">
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Tên mặt hàng</label>
-              <input type="text" id="p-name" required placeholder="VD: Gạo, Cam sành, Nước giặt..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
+              <input type="text" id="p-name" required placeholder="VD: Gấc, Cam Sành, Khoai lang..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
-                <input type="text" id="p-unit" required placeholder="Kg, Thùng, Cái..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <input type="text" id="p-unit" required placeholder="kg, quả, túi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
               <div>
-                <label class="block text-xs text-slate-500 mb-1">Số lượng nhập</label>
-                <input type="number" step="any" id="p-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <label class="block text-xs text-slate-500 mb-1">Số lượng nhập thêm</label>
+                <input type="number" step="any" id="p-qty" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
 
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Tổng tiền vốn nhập (VND)</label>
-              <input type="number" id="p-cost" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <label class="block text-xs text-slate-500 mb-1">Tổng giá nhập đợt này (VND)</label>
+              <input type="number" id="p-total-cost" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
 
-            <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-xs shadow-sm active:opacity-90">
-              Lưu Vào Kho
+            <div class="bg-blue-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-blue-100 text-xs">
+              <div>
+                <span class="text-slate-500 block">Giá nhập TB / ĐVT:</span>
+                <span id="p-avg-cost-preview" class="font-bold text-slate-800">0 đ</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Gợi ý giá bán (>50% lãi):</span>
+                <span id="p-min-price-preview" class="font-bold text-ios-green">0 đ</span>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Lưu / Cộng Dồn Sản Phẩm
             </button>
           </form>
         </div>
 
         <div class="space-y-3">
-          <h2 class="text-xs font-semibold text-slate-500 px-1">Danh sách sản phẩm trong kho (${products.length})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Danh sách sản phẩm (${db.products.length})</h2>
       `;
 
-      if (products.length === 0) {
+      if (db.products.length === 0) {
         html += `
           <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="package-search" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-xs">Chưa có sản phẩm nào trong kho</p>
+            <i data-lucide="package-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-sm">Chưa có sản phẩm nào</p>
           </div>
         `;
       } else {
-        products.forEach(p => {
-          const importQ = p.importQty || p.initialQty || 0;
-          const totalC = p.totalImportCost || ((p.avgImportCost || 0) * importQ);
-          const avgC = p.avgImportCost || p.unitCost || 0;
+        db.products.forEach(p => {
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-start">
               <div class="space-y-1">
-                <span class="font-bold text-slate-900 text-sm">${p.name}</span>
+                <span class="font-bold text-slate-900 text-base">${p.name}</span>
                 <div class="text-xs text-slate-500 space-y-0.5">
-                  <p>Nhập: <b class="text-slate-700">${formatNum(importQ)} ${p.unit}</b> (Vốn: ${formatMoney(totalC)})</p>
-                  <p>Giá vốn TB: <b class="text-slate-700">${formatMoney(avgC)} / ${p.unit}</b></p>
+                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b> (Tổng tiền: ${formatMoney(p.totalImportCost)})</p>
+                  <p>Giá nhập TB: <b class="text-slate-700">${formatMoney(p.avgImportCost)} / ${p.unit}</b></p>
+                  <p>Gợi ý giá bán (>50%): <b class="text-ios-green">${formatMoney(p.minSuggestPrice)} / ${p.unit}</b></p>
                 </div>
               </div>
               <div class="text-right flex flex-col justify-between items-end h-full">
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${p.currentStock > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}">
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${p.currentStock > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}">
                   Tồn: ${formatNum(p.currentStock)} ${p.unit}
                 </span>
-                <button onclick="deleteProduct('${p.id}')" class="mt-4 text-slate-300 hover:text-ios-red p-1" title="Xóa">
+                <button onclick="deleteProduct('${p.id}')" class="mt-4 text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
                   <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -435,84 +361,98 @@
       container.innerHTML = html;
     }
 
+    function calcProductPrices() {
+      const qty = parseFloat(document.getElementById('p-qty').value) || 0;
+      const totalCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
+
+      let avgCost = 0;
+      let minSuggest = 0;
+
+      if (qty > 0 && totalCost > 0) {
+        avgCost = totalCost / qty;
+        minSuggest = avgCost * 1.5;
+      }
+
+      document.getElementById('p-avg-cost-preview').innerText = formatMoney(avgCost);
+      document.getElementById('p-min-price-preview').innerText = formatMoney(minSuggest);
+    }
+
     function handleAddProduct(e) {
       e.preventDefault();
       const name = document.getElementById('p-name').value.trim();
       const unit = document.getElementById('p-unit').value.trim();
       const importQty = parseFloat(document.getElementById('p-qty').value) || 0;
-      const totalImportCost = parseFloat(document.getElementById('p-cost').value) || 0;
+      const totalImportCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
 
       if (importQty <= 0) {
         alert("Số lượng nhập phải lớn hơn 0!");
         return;
       }
 
-      const avgImportCost = totalImportCost / importQty;
-      let products = getProductsList();
-      let existing = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+      let existingProd = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
 
-      if (existing) {
-        const newImportQty = (existing.importQty || existing.initialQty || 0) + importQty;
-        const newTotalCost = (existing.totalImportCost || 0) + totalImportCost;
-        existing.importQty = newImportQty;
-        existing.initialQty = newImportQty;
-        existing.totalImportCost = newTotalCost;
-        existing.avgImportCost = newTotalCost / newImportQty;
-        existing.unitCost = existing.avgImportCost;
-        existing.currentStock = (existing.currentStock || 0) + importQty;
-        existing.unit = unit;
+      if (existingProd) {
+        existingProd.importQty += importQty;
+        existingProd.totalImportCost += totalImportCost;
+        existingProd.currentStock += importQty;
+        existingProd.avgImportCost = existingProd.totalImportCost / existingProd.importQty;
+        existingProd.minSuggestPrice = existingProd.avgImportCost * 1.5;
+        existingProd.unit = unit;
       } else {
-        products.push({
+        const avgImportCost = totalImportCost / importQty;
+        const minSuggestPrice = avgImportCost * 1.5;
+
+        const newProd = {
           id: 'P_' + Date.now(),
           name,
           unit,
           importQty,
-          initialQty: importQty,
           totalImportCost,
           avgImportCost,
-          unitCost: avgImportCost,
+          minSuggestPrice,
           currentStock: importQty
-        });
+        };
+
+        db.products.push(newProd);
       }
-      db.products = products;
 
       saveDB();
-      renderInventory();
+      renderProducts();
       lucide.createIcons();
     }
 
     function deleteProduct(id) {
-      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử bán hàng liên quan. Bạn chắc chắn chứ?")) {
-        let products = getProductsList().filter(p => p.id !== id);
-        db.products = products;
-        db.sales = db.sales.filter(s => (s.productId || s.itemId) !== id);
+      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử bán hàng và biếu tặng liên quan. Bạn có chắc chắn?")) {
+        db.products = db.products.filter(p => p.id !== id);
+        db.sales = db.sales.filter(s => s.productId !== id);
+        if (db.giveaways) {
+          db.giveaways = db.giveaways.filter(g => g.productId !== id);
+        }
         saveDB();
-        renderInventory();
+        renderProducts();
         lucide.createIcons();
       }
     }
 
     // ==========================================
-    // 3. SALES TAB (BÁN HÀNG)
+    // 2. SALES TAB (BÁN HÀNG)
     // ==========================================
     function renderSales() {
       const container = document.getElementById('app-content');
-      if(!container) return;
 
-      const products = getProductsList();
-      let productOptions = products.map(p => 
+      let productOptions = db.products.map(p => 
         `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
       ).join('');
 
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
-          <h2 class="text-sm font-bold mb-3 flex items-center text-slate-800">
-            <i data-lucide="shopping-cart" class="w-4 h-4 mr-2 text-ios-green"></i> Ghi nhận đơn bán hàng
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="shopping-bag" class="w-5 h-5 mr-2 text-ios-green"></i> Đơn bán hàng mới
           </h2>
           <form onsubmit="handleAddSale(event)" class="space-y-3">
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Chọn sản phẩm</label>
-              <select id="s-prod-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm</label>
+              <select id="s-product-id" onchange="onSelectSaleProduct()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
                 <option value="">-- Chọn sản phẩm --</option>
                 ${productOptions}
               </select>
@@ -521,65 +461,72 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày bán</label>
-                <input type="date" id="s-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <input type="date" id="s-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Số lượng bán</label>
-                <input type="number" step="any" id="s-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <input type="number" step="any" id="s-qty" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
 
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Tổng tiền thực thu (VND)</label>
-              <input type="number" id="s-rev" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <label class="block text-xs text-slate-500 mb-1">Tổng tiền khách trả (Tổng Doanh Thu - VND)</label>
+              <input type="number" id="s-total-revenue" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
 
-            <button type="submit" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs shadow-sm active:opacity-90">
+            <div class="bg-emerald-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-emerald-100 text-xs">
+              <div>
+                <span class="text-slate-500 block">Giá bán thực tế / ĐVT:</span>
+                <span id="s-unit-price-preview" class="font-bold text-slate-800">0 đ</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Lợi Nhuận Dự Kiến:</span>
+                <span id="s-profit-preview" class="font-bold text-ios-green">0 đ</span>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
               Xác Nhận Bán Hàng
             </button>
           </form>
         </div>
 
         <div class="space-y-3">
-          <h2 class="text-xs font-semibold text-slate-500 px-1">Lịch sử bán hàng</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử giao dịch bán</h2>
       `;
 
-      const validSales = db.sales.filter(s => products.some(p => p.id === (s.productId || s.itemId)));
+      const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
 
       if (validSales.length === 0) {
         html += `
           <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
             <i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-xs">Chưa có giao dịch bán hàng nào</p>
+            <p class="text-sm">Chưa có giao dịch bán nào</p>
           </div>
         `;
       } else {
         const sortedSales = [...validSales].reverse();
         sortedSales.forEach(s => {
-          const pId = s.productId || s.itemId;
-          const p = products.find(prod => prod.id === pId);
-          if(!p) return;
-          const rev = s.totalRevenue !== undefined ? s.totalRevenue : (s.revenue || 0);
-          const prof = s.profit !== undefined ? s.profit : 0;
+          const prod = db.products.find(p => p.id === s.productId);
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-slate-900 text-sm">${p.name}</span>
-                  <span class="text-[10px] text-slate-400">${s.date}</span>
+                  <span class="font-bold text-slate-900">${prod.name}</span>
+                  <span class="text-xs text-slate-400">${s.date}</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-1">
-                  Đã bán: <b class="text-slate-700">${formatNum(s.qty)} ${p.unit}</b>
+                  Đã bán: <b class="text-slate-700">${formatNum(s.qty)} ${prod.unit}</b> (Giá bán thực tế: ${formatMoney(s.actualUnitPrice)} / ${prod.unit})
                 </p>
               </div>
               <div class="text-right flex items-center gap-3">
                 <div>
-                  <p class="text-xs font-bold text-slate-900">${formatMoney(rev)}</p>
-                  <p class="text-[10px] font-semibold ${prof >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                    Lãi: ${formatMoney(prof)}
+                  <p class="text-sm font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
+                  <p class="text-xs font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
+                    Lãi: ${formatMoney(s.profit)}
                   </p>
                 </div>
-                <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa">
+                <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán">
                   <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -592,16 +539,49 @@
       container.innerHTML = html;
     }
 
+    function onSelectSaleProduct() {
+      const pId = document.getElementById('s-product-id').value;
+      const prod = db.products.find(p => p.id === pId);
+      if (prod) {
+        const qty = parseFloat(document.getElementById('s-qty').value) || 0;
+        if (qty > 0) {
+          document.getElementById('s-total-revenue').value = Math.round(qty * prod.minSuggestPrice);
+        }
+        calcSalePreview();
+      }
+    }
+
+    function calcSalePreview() {
+      const pId = document.getElementById('s-product-id').value;
+      const qty = parseFloat(document.getElementById('s-qty').value) || 0;
+      const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
+
+      const prod = db.products.find(p => p.id === pId);
+      let unitPrice = 0;
+      let profit = 0;
+
+      if (qty > 0) {
+        unitPrice = totalRevenue / qty;
+      }
+
+      if (prod && qty > 0) {
+        let totalCost = qty * prod.avgImportCost;
+        profit = totalRevenue - totalCost;
+      }
+
+      document.getElementById('s-unit-price-preview').innerText = formatMoney(unitPrice) + ' / đvt';
+      document.getElementById('s-profit-preview').innerText = formatMoney(profit);
+    }
+
     function handleAddSale(e) {
       e.preventDefault();
-      const productId = document.getElementById('s-prod-id').value;
+      const productId = document.getElementById('s-product-id').value;
       const date = document.getElementById('s-date').value;
       const qty = parseFloat(document.getElementById('s-qty').value) || 0;
-      const totalRevenue = parseFloat(document.getElementById('s-rev').value) || 0;
+      const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
 
-      const products = getProductsList();
-      const p = products.find(prod => prod.id === productId);
-      if (!p) {
+      const prod = db.products.find(p => p.id === productId);
+      if (!prod) {
         alert("Vui lòng chọn sản phẩm!");
         return;
       }
@@ -611,17 +591,17 @@
         return;
       }
 
-      if (qty > p.currentStock) {
-        if (!confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${p.currentStock} ${p.unit}). Bạn muốn tiếp tục?`)) {
+      if (qty > prod.currentStock) {
+        if (!confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
           return;
         }
       }
 
-      const avgCost = p.avgImportCost || p.unitCost || 0;
-      const totalCost = qty * avgCost;
+      const totalCost = qty * prod.avgImportCost;
       const profit = totalRevenue - totalCost;
+      const actualUnitPrice = totalRevenue / qty;
 
-      p.currentStock -= qty;
+      prod.currentStock -= qty;
 
       db.sales.push({
         id: 'S_' + Date.now(),
@@ -629,7 +609,7 @@
         productId,
         qty,
         totalRevenue,
-        actualUnitPrice: totalRevenue / qty,
+        actualUnitPrice,
         totalCost,
         profit
       });
@@ -640,14 +620,12 @@
     }
 
     function deleteSale(saleId) {
-      if (confirm("Xóa đơn bán hàng này? (Số lượng sẽ được cộng trả lại kho)")) {
+      if (confirm("Bạn muốn xóa đơn bán này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
         const sale = db.sales.find(s => s.id === saleId);
         if (sale) {
-          const pId = sale.productId || sale.itemId;
-          const products = getProductsList();
-          const p = products.find(prod => prod.id === pId);
-          if (p) {
-            p.currentStock += sale.qty;
+          const prod = db.products.find(p => p.id === sale.productId);
+          if (prod) {
+            prod.currentStock += sale.qty;
           }
           db.sales = db.sales.filter(s => s.id !== saleId);
           saveDB();
@@ -658,7 +636,156 @@
     }
 
     // ==========================================
-    // 4. REPORTS TAB (BÁO CÁO & BIỂU ĐỒ THEO THÁNG)
+    // 3. GIVEAWAYS TAB (BIẾU TẶNG)
+    // ==========================================
+    function renderGiveaways() {
+      const container = document.getElementById('app-content');
+
+      let productOptions = db.products.map(p => 
+        `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
+      ).join('');
+
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="gift" class="w-5 h-5 mr-2 text-ios-pink"></i> Ghi nhận biếu tặng (nhà ăn, từ thiện...)
+          </h2>
+          <form onsubmit="handleAddGiveaway(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm Biếu</label>
+              <select id="g-product-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn sản phẩm --</option>
+                ${productOptions}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày biếu</label>
+                <input type="date" id="g-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng biếu</label>
+                <input type="number" step="any" id="g-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Ghi chú (VD: Biếu nhà ăn số 2)</label>
+              <input type="text" id="g-note" placeholder="Nhập tên người nhận hoặc địa điểm..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+
+            <button type="submit" class="w-full bg-ios-pink text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Xác Nhận Biếu Tặng
+            </button>
+          </form>
+        </div>
+
+        <div class="space-y-3">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử biếu tặng</h2>
+      `;
+
+      const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
+
+      if (validGiveaways.length === 0) {
+        html += `
+          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <i data-lucide="heart-handshake" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-sm">Chưa có lịch sử biếu tặng nào</p>
+          </div>
+        `;
+      } else {
+        const sortedGiveaways = [...validGiveaways].reverse();
+        sortedGiveaways.forEach(g => {
+          const prod = db.products.find(p => p.id === g.productId);
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-900">${prod.name}</span>
+                  <span class="text-xs text-slate-400">${g.date}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod.unit}</b></p>
+                ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 ${g.note}</p>` : ''}
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="text-xs font-bold bg-pink-50 text-ios-pink px-2.5 py-1 rounded-full">
+                  Vốn: ${formatMoney(g.costValue)}
+                </span>
+                <button onclick="deleteGiveaway('${g.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa lịch sử biếu">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function handleAddGiveaway(e) {
+      e.preventDefault();
+      const productId = document.getElementById('g-product-id').value;
+      const date = document.getElementById('g-date').value;
+      const qty = parseFloat(document.getElementById('g-qty').value) || 0;
+      const note = document.getElementById('g-note').value.trim();
+
+      const prod = db.products.find(p => p.id === productId);
+      if (!prod) {
+        alert("Vui lòng chọn sản phẩm!");
+        return;
+      }
+
+      if (qty <= 0) {
+        alert("Số lượng biếu phải lớn hơn 0!");
+        return;
+      }
+
+      if (qty > prod.currentStock) {
+        if (!confirm(`Số lượng biếu (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
+          return;
+        }
+      }
+
+      const costValue = qty * prod.avgImportCost;
+
+      prod.currentStock -= qty;
+
+      if (!db.giveaways) db.giveaways = [];
+      db.giveaways.push({
+        id: 'G_' + Date.now(),
+        date,
+        productId,
+        qty,
+        note,
+        costValue
+      });
+
+      saveDB();
+      renderGiveaways();
+      lucide.createIcons();
+    }
+
+    function deleteGiveaway(giveawayId) {
+      if (confirm("Bạn muốn xóa lượt biếu này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
+        const giveaway = db.giveaways.find(g => g.id === giveawayId);
+        if (giveaway) {
+          const prod = db.products.find(p => p.id === giveaway.productId);
+          if (prod) {
+            prod.currentStock += giveaway.qty;
+          }
+          db.giveaways = db.giveaways.filter(g => g.id !== giveawayId);
+          saveDB();
+          renderGiveaways();
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ==========================================
+    // 4. REPORTS TAB (BÁO CÁO & BIỂU ĐỒ THÁNG)
     // ==========================================
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
@@ -668,43 +795,55 @@
 
     function renderReports() {
       const container = document.getElementById('app-content');
-      if(!container) return;
 
-      const products = getProductsList();
-      const validSales = db.sales.filter(s => products.some(p => p.id === (s.productId || s.itemId)));
+      const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
+      const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
 
-      // Gom nhóm theo tháng từ tất cả giao dịch (YYYY-MM)
+      // Gom nhóm dữ liệu theo từng tháng (Định dạng "YYYY-MM")
       let monthlyMap = {};
+
       validSales.forEach(s => {
-        if(!s.date) return;
-        const mKey = s.date.substring(0, 7); // "2026-10"
-        if(!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, profit: 0, cost: 0, salesCount: 0 };
-        const rev = s.totalRevenue !== undefined ? s.totalRevenue : (s.revenue || 0);
-        const prof = s.profit || 0;
-        const cst = s.totalCost || 0;
-        monthlyMap[mKey].revenue += rev;
-        monthlyMap[mKey].profit += prof;
-        monthlyMap[mKey].cost += cst;
-        monthlyMap[mKey].salesCount++;
+        if (!s.date) return;
+        const mKey = s.date.substring(0, 7); // Lấy chuỗi "2026-10"
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0 };
+        monthlyMap[mKey].revenue += (s.totalRevenue || 0);
+        monthlyMap[mKey].cost += (s.totalCost || 0);
+        monthlyMap[mKey].profit += (s.profit || 0);
+      });
+
+      validGiveaways.forEach(g => {
+        if (!g.date) return;
+        const mKey = g.date.substring(0, 7);
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0 };
+        monthlyMap[mKey].giveawayVal += (g.costValue || 0);
       });
 
       const sortedMonths = Object.keys(monthlyMap).sort().reverse();
 
-      // Lọc giao dịch theo tháng được chọn
+      // Lọc danh sách giao dịch theo tháng được chọn
       let filteredSales = validSales;
+      let filteredGiveaways = validGiveaways;
+
       if (selectedReportMonth !== 'ALL') {
         filteredSales = validSales.filter(s => s.date && s.date.startsWith(selectedReportMonth));
+        filteredGiveaways = validGiveaways.filter(g => g.date && g.date.startsWith(selectedReportMonth));
       }
 
       let totalRevenue = 0;
+      let totalCost = 0;
       let totalProfit = 0;
-      let totalCostVal = 0;
       filteredSales.forEach(s => {
-        totalRevenue += (s.totalRevenue !== undefined ? s.totalRevenue : (s.revenue || 0));
+        totalRevenue += (s.totalRevenue || 0);
+        totalCost += (s.totalCost || 0);
         totalProfit += (s.profit || 0);
-        totalCostVal += (s.totalCost || 0);
       });
 
+      let totalGiveawayValue = 0;
+      filteredGiveaways.forEach(g => {
+        totalGiveawayValue += (g.costValue || 0);
+      });
+
+      // Tạo các tùy chọn tháng cho ô chọn Dropdown
       let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
       sortedMonths.forEach(m => {
         const parts = m.split('-');
@@ -713,30 +852,31 @@
       });
 
       let html = `
-        <!-- Bộ lọc Tháng -->
+        <!-- Bộ lọc tháng -->
         <div class="bg-white rounded-2xl p-3 shadow-sm mb-4 border border-slate-100 flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-600">Chọn thời gian:</span>
+          <span class="text-xs font-semibold text-slate-600">Thời gian báo cáo:</span>
           <select id="report-month-select" onchange="changeReportMonth(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ios-blue text-slate-800">
             ${monthOptions}
           </select>
         </div>
 
-        <!-- BIỂU ĐỒ TỔNG QUAN CÁC THÁNG -->
+        <!-- BIỂU ĐỒ TỔNG QUAN DOANH THU CÁC THÁNG -->
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
           <h2 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Vốn & Lãi các tháng
+            <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng
           </h2>
       `;
 
       if (sortedMonths.length === 0) {
-        html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu bán hàng để hiển thị biểu đồ</p>`;
+        html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu bán hàng để vẽ biểu đồ</p>`;
       } else {
+        // Tìm doanh thu lớn nhất để tính tỉ lệ phần trăm thanh biểu đồ
         let maxRev = 1;
         sortedMonths.forEach(m => {
           if (monthlyMap[m].revenue > maxRev) maxRev = monthlyMap[m].revenue;
         });
 
-        html += `<div class="space-y-2.5 pt-1">`;
+        html += `<div class="space-y-3 pt-1">`;
         sortedMonths.forEach(m => {
           const data = monthlyMap[m];
           const parts = m.split('-');
@@ -744,12 +884,12 @@
           const revPercent = Math.round((data.revenue / maxRev) * 100);
 
           html += `
-            <div class="bg-slate-50 p-2.5 rounded-xl space-y-1.5">
+            <div class="bg-slate-50 p-3 rounded-xl space-y-2">
               <div class="flex justify-between items-center text-xs">
                 <span class="font-bold text-slate-800">${mLabel}</span>
-                <span class="text-[11px] font-semibold text-ios-green">Lãi: ${formatMoney(data.profit)}</span>
+                <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)}</span>
               </div>
-              <div class="space-y-1">
+              <div class="space-y-1.5">
                 <div>
                   <div class="flex justify-between text-[10px] text-slate-500 mb-0.5">
                     <span>Doanh thu:</span>
@@ -761,8 +901,8 @@
                 </div>
                 <div>
                   <div class="flex justify-between text-[10px] text-slate-500 mb-0.5">
-                    <span>Vốn hàng bán:</span>
-                    <span class="font-bold text-slate-700">${formatMoney(data.cost)}</span>
+                    <span>Tiền vốn bán:</span>
+                    <span class="font-bold text-slate-600">${formatMoney(data.cost)}</span>
                   </div>
                   <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                     <div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: ${Math.round((data.cost / maxRev) * 100)}%"></div>
@@ -777,13 +917,13 @@
 
       html += `</div>`;
 
-      // Thẻ tổng hợp
+      // Thẻ chỉ số tổng hợp
       html += `
         <div class="grid grid-cols-1 gap-3 mb-6">
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
               <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng</p>
-              <p class="text-lg font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
+              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
               <i data-lucide="trending-up" class="w-5 h-5"></i>
@@ -792,50 +932,66 @@
 
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
-              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Thực Tế (Thu - Vốn Bán)</p>
-              <p class="text-xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
+              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Kinh Doanh</p>
+              <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
             </div>
             <div class="w-10 h-10 ${totalProfit >= 0 ? 'bg-emerald-50 text-ios-green' : 'bg-red-50 text-red-500'} rounded-full flex items-center justify-center">
               <i data-lucide="piggy-bank" class="w-5 h-5"></i>
             </div>
           </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">Tổng Giá Trị Đã Biếu Tặng</p>
+              <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
+            </div>
+            <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
+              <i data-lucide="gift" class="w-5 h-5"></i>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-3">
-          <h2 class="text-xs font-semibold text-slate-500 px-1">Chi tiết theo sản phẩm (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết theo từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
       `;
 
-      if (products.length === 0) {
+      if (db.products.length === 0) {
         html += `
           <div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
             <p class="text-xs">Chưa có sản phẩm nào để thống kê</p>
           </div>
         `;
       } else {
-        products.forEach(p => {
-          const itemSales = filteredSales.filter(s => (s.productId || s.itemId) === p.id);
+        db.products.forEach(p => {
+          const itemSales = filteredSales.filter(s => s.productId === p.id);
           const soldQty = itemSales.reduce((sum, s) => sum + s.qty, 0);
-          const itemRevenue = itemSales.reduce((sum, s) => sum + (s.totalRevenue !== undefined ? s.totalRevenue : (s.revenue || 0)), 0);
+          const itemRevenue = itemSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+          const itemCost = itemSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
           const itemProfit = itemSales.reduce((sum, s) => sum + (s.profit || 0), 0);
-          const importQ = p.importQty || p.initialQty || 0;
+
+          const itemGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
+          const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
+          const giveawayVal = itemGiveaways.reduce((sum, g) => sum + (g.costValue || 0), 0);
 
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span class="font-bold text-slate-900 text-sm">${p.name}</span>
-                <span class="text-xs font-bold text-slate-700">
-                  Doanh thu: ${formatMoney(itemRevenue)}
+                <span class="font-bold text-slate-900 text-base">${p.name}</span>
+                <span class="text-xs font-bold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
+                  Lãi: ${formatMoney(itemProfit)}
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
                 <div>
-                  <p>Nhập ban đầu: <b class="text-slate-700">${formatNum(importQ)} ${p.unit}</b></p>
+                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b></p>
                   <p>Đã Bán: <b class="text-slate-700">${formatNum(soldQty)} ${p.unit}</b></p>
+                  <p>Đã Biếu: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
+                  <p>Tồn Kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
                 </div>
                 <div class="text-right space-y-0.5">
-                  <p>Tồn Kho Hiện Tại:</p>
-                  <p class="text-xs font-extrabold text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</p>
-                  <p>Lãi sản phẩm: <b class="text-ios-green">${formatMoney(itemProfit)}</b></p>
+                  <p>Doanh thu bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
+                  <p>Tiền vốn bán: <b class="text-slate-800">${formatMoney(itemCost)}</b></p>
+                  <p>Vốn biếu tặng: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
                 </div>
               </div>
             </div>
@@ -851,7 +1007,7 @@
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `iStock_quanlykho_backup_${getTodayString()}.json`);
+      downloadAnchor.setAttribute("download", `quanlykho_backup_${getTodayString()}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -859,7 +1015,7 @@
 
     window.onload = function() {
       loadDB();
-      switchTab('dashboard');
+      switchTab('products');
     };
   </script>
 </body>
