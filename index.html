@@ -111,6 +111,10 @@
         <i data-lucide="gift" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Biếu tặng</span>
       </button>
+      <button onclick="switchTab('damaged')" id="nav-damaged" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Hư hỏng</span>
+      </button>
       <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
         <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
         <span class="text-[9px] font-medium mt-1">Báo cáo</span>
@@ -123,13 +127,15 @@
     let db = {
       products: [], 
       sales: [],
-      giveaways: []
+      giveaways: [],
+      damaged: []
     };
 
     let googleSheetUrl = '';
     let selectedReportMonth = 'ALL';
     let showProfitChart = true;
     let showGiveawayChart = true;
+    let showDamagedChart = true;
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -137,6 +143,7 @@
         try {
           db = JSON.parse(stored);
           if (!db.giveaways) db.giveaways = [];
+          if (!db.damaged) db.damaged = [];
         } catch(e) {
           console.error("Lỗi đọc dữ liệu local", e);
         }
@@ -191,6 +198,7 @@
         if (data && data.products) {
           db = data;
           if (!db.giveaways) db.giveaways = [];
+          if (!db.damaged) db.damaged = [];
           localStorage.setItem('app_inventory_db', JSON.stringify(db));
           switchTab(currentTab);
         }
@@ -244,7 +252,7 @@
     function switchTab(tab) {
       currentTab = tab;
       
-      ['products', 'sales', 'giveaways', 'reports'].forEach(t => {
+      ['products', 'sales', 'giveaways', 'damaged', 'reports'].forEach(t => {
         const btn = document.getElementById(`nav-${t}`);
         if (t === tab) {
           btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue';
@@ -263,6 +271,9 @@
       } else if (tab === 'giveaways') {
         titleEl.innerText = 'Quản lý Biếu tặng';
         renderGiveaways();
+      } else if (tab === 'damaged') {
+        titleEl.innerText = 'Quản lý Hư hỏng';
+        renderDamaged();
       } else if (tab === 'reports') {
         titleEl.innerText = 'Báo cáo & Phân tích';
         renderReports();
@@ -422,12 +433,11 @@
     }
 
     function deleteProduct(id) {
-      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử bán hàng và biếu tặng liên quan. Bạn có chắc chắn?")) {
+      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử bán hàng, biếu tặng và hư hỏng liên quan. Bạn có chắc chắn?")) {
         db.products = db.products.filter(p => p.id !== id);
         db.sales = db.sales.filter(s => s.productId !== id);
-        if (db.giveaways) {
-          db.giveaways = db.giveaways.filter(g => g.productId !== id);
-        }
+        if (db.giveaways) db.giveaways = db.giveaways.filter(g => g.productId !== id);
+        if (db.damaged) db.damaged = db.damaged.filter(d => d.productId !== id);
         saveDB();
         renderProducts();
         lucide.createIcons();
@@ -560,9 +570,7 @@
       let unitPrice = 0;
       let profit = 0;
 
-      if (qty > 0) {
-        unitPrice = totalRevenue / qty;
-      }
+      if (qty > 0) unitPrice = totalRevenue / qty;
 
       if (prod && qty > 0) {
         let totalCost = qty * prod.avgImportCost;
@@ -626,9 +634,7 @@
         const sale = db.sales.find(s => s.id === saleId);
         if (sale) {
           const prod = db.products.find(p => p.id === sale.productId);
-          if (prod) {
-            prod.currentStock += sale.qty;
-          }
+          if (prod) prod.currentStock += sale.qty;
           db.sales = db.sales.filter(s => s.id !== saleId);
           saveDB();
           renderSales();
@@ -752,7 +758,6 @@
       }
 
       const costValue = qty * prod.avgImportCost;
-
       prod.currentStock -= qty;
 
       if (!db.giveaways) db.giveaways = [];
@@ -775,9 +780,7 @@
         const giveaway = db.giveaways.find(g => g.id === giveawayId);
         if (giveaway) {
           const prod = db.products.find(p => p.id === giveaway.productId);
-          if (prod) {
-            prod.currentStock += giveaway.qty;
-          }
+          if (prod) prod.currentStock += giveaway.qty;
           db.giveaways = db.giveaways.filter(g => g.id !== giveawayId);
           saveDB();
           renderGiveaways();
@@ -787,7 +790,153 @@
     }
 
     // ==========================================
-    // 4. REPORTS TAB (BÁO CÁO & PHÂN TÍCH VỚI MŨI TÊN KÍCH MỞ)
+    // 4. DAMAGED TAB (HƯ HỎNG & HAO HỤT)
+    // ==========================================
+    function renderDamaged() {
+      const container = document.getElementById('app-content');
+
+      let productOptions = db.products.map(p => 
+        `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
+      ).join('');
+
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 text-ios-orange"></i> Ghi nhận Hư hỏng / Dập nát / Hao hụt
+          </h2>
+          <form onsubmit="handleAddDamaged(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm Hư Hỏng</label>
+              <select id="d-product-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn sản phẩm --</option>
+                ${productOptions}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày hư hỏng</label>
+                <input type="date" id="d-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng hỏng</label>
+                <input type="number" step="any" id="d-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Nguyên nhân / Ghi chú</label>
+              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển, hỏng thối, bay hơi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+
+            <button type="submit" class="w-full bg-ios-orange text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Xác Nhận Ghi Nhận Hư Hỏng
+            </button>
+          </form>
+        </div>
+
+        <div class="space-y-3">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử hư hỏng & hao hụt</h2>
+      `;
+
+      const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
+
+      if (validDamaged.length === 0) {
+        html += `
+          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-sm">Chưa có ghi nhận hư hỏng nào</p>
+          </div>
+        `;
+      } else {
+        const sortedDamaged = [...validDamaged].reverse();
+        sortedDamaged.forEach(d => {
+          const prod = db.products.find(p => p.id === d.productId);
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-900">${prod.name}</span>
+                  <span class="text-xs text-slate-400">${d.date}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod.unit}</b></p>
+                ${d.note ? `<p class="text-[11px] text-slate-400 mt-0.5">⚠️ Lý do: <b>${d.note}</b></p>` : ''}
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="text-xs font-bold bg-orange-50 text-ios-orange px-2.5 py-1 rounded-full">
+                  Thất thoát: ${formatMoney(d.costValue)}
+                </span>
+                <button onclick="deleteDamaged('${d.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa ghi nhận hư hỏng">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function handleAddDamaged(e) {
+      e.preventDefault();
+      const productId = document.getElementById('d-product-id').value;
+      const date = document.getElementById('d-date').value;
+      const qty = parseFloat(document.getElementById('d-qty').value) || 0;
+      const note = document.getElementById('d-note').value.trim();
+
+      const prod = db.products.find(p => p.id === productId);
+      if (!prod) {
+        alert("Vui lòng chọn sản phẩm!");
+        return;
+      }
+
+      if (qty <= 0) {
+        alert("Số lượng hư hỏng phải lớn hơn 0!");
+        return;
+      }
+
+      if (qty > prod.currentStock) {
+        if (!confirm(`Số lượng báo hỏng (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
+          return;
+        }
+      }
+
+      const costValue = qty * prod.avgImportCost;
+      prod.currentStock -= qty;
+
+      if (!db.damaged) db.damaged = [];
+      db.damaged.push({
+        id: 'D_' + Date.now(),
+        date,
+        productId,
+        qty,
+        note,
+        costValue
+      });
+
+      saveDB();
+      renderDamaged();
+      lucide.createIcons();
+    }
+
+    function deleteDamaged(damagedId) {
+      if (confirm("Bạn muốn xóa ghi nhận hư hỏng này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
+        const damagedItem = db.damaged.find(d => d.id === damagedId);
+        if (damagedItem) {
+          const prod = db.products.find(p => p.id === damagedItem.productId);
+          if (prod) prod.currentStock += damagedItem.qty;
+          db.damaged = db.damaged.filter(d => d.id !== damagedId);
+          saveDB();
+          renderDamaged();
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ==========================================
+    // 5. REPORTS TAB (BÁO CÁO & PHÂN TÍCH)
     // ==========================================
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
@@ -807,7 +956,12 @@
       lucide.createIcons();
     }
 
-    // Hàm chuẩn hóa chuỗi không phân biệt hoa thường (VD: "bà" hay "Bà" -> "Bà")
+    function toggleDamagedChart() {
+      showDamagedChart = !showDamagedChart;
+      renderReports();
+      lucide.createIcons();
+    }
+
     function capitalizeWord(str) {
       if (!str) return 'Chưa ghi chú / Khác';
       const clean = str.trim().toLowerCase();
@@ -820,6 +974,7 @@
 
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
       const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
+      const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
 
       // Gom nhóm theo tháng (YYYY-MM)
       let monthlyMap = {};
@@ -827,7 +982,7 @@
       validSales.forEach(s => {
         if (!s.date) return;
         const mKey = s.date.substring(0, 7);
-        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0 };
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
         monthlyMap[mKey].revenue += (s.totalRevenue || 0);
         monthlyMap[mKey].cost += (s.totalCost || 0);
         monthlyMap[mKey].profit += (s.profit || 0);
@@ -836,8 +991,15 @@
       validGiveaways.forEach(g => {
         if (!g.date) return;
         const mKey = g.date.substring(0, 7);
-        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0 };
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
         monthlyMap[mKey].giveawayVal += (g.costValue || 0);
+      });
+
+      validDamaged.forEach(d => {
+        if (!d.date) return;
+        const mKey = d.date.substring(0, 7);
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
+        monthlyMap[mKey].damagedVal += (d.costValue || 0);
       });
 
       const sortedMonths = Object.keys(monthlyMap).sort().reverse();
@@ -845,10 +1007,12 @@
       // Lọc giao dịch theo tháng được chọn
       let filteredSales = validSales;
       let filteredGiveaways = validGiveaways;
+      let filteredDamaged = validDamaged;
 
       if (selectedReportMonth !== 'ALL') {
         filteredSales = validSales.filter(s => s.date && s.date.startsWith(selectedReportMonth));
         filteredGiveaways = validGiveaways.filter(g => g.date && g.date.startsWith(selectedReportMonth));
+        filteredDamaged = validDamaged.filter(d => d.date && d.date.startsWith(selectedReportMonth));
       }
 
       let totalRevenue = 0;
@@ -863,16 +1027,14 @@
       const avgProfitMargin = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(1) : 0;
 
       let totalGiveawayValue = 0;
-      filteredGiveaways.forEach(g => {
-        totalGiveawayValue += (g.costValue || 0);
-      });
+      filteredGiveaways.forEach(g => totalGiveawayValue += (g.costValue || 0));
 
-      // Tính tổng vốn nhập hàng
-      let totalAllImportCost = db.products.reduce((sum, p) => sum + (p.totalImportCost || 0), 0);
+      let totalDamagedValue = 0;
+      filteredDamaged.forEach(d => totalDamagedValue += (d.costValue || 0));
 
-      // Tính % Biếu tặng / Hao hụt trên Vốn và Lãi
-      let giveawayVsCapitalPercent = totalAllImportCost > 0 ? ((totalGiveawayValue / totalAllImportCost) * 100).toFixed(1) : '0.0';
+      // Tính % Biếu tặng và Hư hỏng trên Lãi
       let giveawayVsProfitPercent = totalProfit > 0 ? ((totalGiveawayValue / totalProfit) * 100).toFixed(1) : '0.0';
+      let damagedVsProfitPercent = totalProfit > 0 ? ((totalDamagedValue / totalProfit) * 100).toFixed(1) : '0.0';
 
       let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
       sortedMonths.forEach(m => {
@@ -890,7 +1052,7 @@
           </select>
         </div>
 
-        <!-- Thẻ chỉ số tổng hợp có tích hợp kích để đóng/mở biểu đồ -->
+        <!-- Các Thẻ Chỉ Số Báo Cáo -->
         <div class="grid grid-cols-1 gap-3 mb-4">
           <!-- 1. Doanh Thu -->
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
@@ -903,7 +1065,7 @@
             </div>
           </div>
 
-          <!-- 2. Lợi Nhuận - KÍCH VÀO ĐỂ ĐÓNG/MỞ BIỂU ĐỒ DOANH THU LỢI NHUẬN -->
+          <!-- 2. Lợi Nhuận -->
           <div onclick="toggleProfitChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
             <div>
               <div class="flex items-center gap-1.5">
@@ -923,13 +1085,16 @@
             </div>
           </div>
 
-          <!-- 3. Biếu Tặng - KÍCH VÀO ĐỂ ĐÓNG/MỞ BIỂU ĐỒ BIẾU TẶNG -->
+          <!-- 3. Biếu Tặng -->
           <div onclick="toggleGiveawayChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
             <div>
-              <p class="text-xs text-slate-500 font-bold">Tổng Vốn Biếu Tặng / Hao Hụt</p>
+              <div class="flex items-center gap-1.5">
+                <p class="text-xs text-slate-500 font-bold">Tổng Vốn Biếu Tặng</p>
+                <span class="text-[10px] text-ios-pink font-bold bg-pink-50 px-1.5 py-0.5 rounded-full">Chiếm ${giveawayVsProfitPercent}% Lãi</span>
+              </div>
               <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
               <p class="text-[10px] text-ios-pink flex items-center gap-0.5 mt-1 font-medium">
-                ${showGiveawayChart ? 'Bấm để ẩn biểu đồ chi tiết' : 'Bấm xem chi tiết biểu đồ Biếu tặng'}
+                ${showGiveawayChart ? 'Bấm để ẩn biểu đồ chi tiết' : 'Bấm xem chi tiết Biếu tặng'}
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -939,11 +1104,31 @@
               <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${showGiveawayChart ? 'rotate-180' : ''}"></i>
             </div>
           </div>
+
+          <!-- 4. Hư Hỏng -->
+          <div onclick="toggleDamagedChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <p class="text-xs text-slate-500 font-bold">Tổng Vốn Hư Hỏng / Thất Thoát</p>
+                <span class="text-[10px] text-ios-orange font-bold bg-orange-50 px-1.5 py-0.5 rounded-full">Chiếm ${damagedVsProfitPercent}% Lãi</span>
+              </div>
+              <p class="text-xl font-extrabold text-ios-orange mt-0.5">${formatMoney(totalDamagedValue)}</p>
+              <p class="text-[10px] text-ios-orange flex items-center gap-0.5 mt-1 font-medium">
+                ${showDamagedChart ? 'Bấm để ẩn biểu đồ chi tiết' : 'Bấm xem chi tiết Hư hỏng'}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-10 h-10 bg-orange-50 text-ios-orange rounded-full flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+              </div>
+              <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${showDamagedChart ? 'rotate-180' : ''}"></i>
+            </div>
+          </div>
         </div>
       `;
 
       // ==========================================
-      // KHU VỰC 1: BIỂU ĐỒ DOANH THU & LỢI NHUẬN CÁC THÁNG (Hiển thị khi click Lợi nhuận)
+      // KHU VỰC 1: BIỂU ĐỒ DOANH THU & LỢI NHUẬN
       // ==========================================
       if (showProfitChart) {
         html += `
@@ -952,12 +1137,11 @@
               <span class="flex items-center gap-1.5">
                 <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng
               </span>
-              <span class="text-[10px] text-slate-400 font-normal">Đã mở</span>
             </h2>
         `;
 
         if (sortedMonths.length === 0) {
-          html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu giao dịch để vẽ biểu đồ</p>`;
+          html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu giao dịch</p>`;
         } else {
           let maxRev = 1;
           sortedMonths.forEach(m => {
@@ -990,7 +1174,7 @@
                   </div>
                   <div>
                     <div class="flex justify-between text-[10px] text-slate-500 mb-0.5">
-                      <span>Tiền vốn bán:</span>
+                      <span>Vốn bán:</span>
                       <span class="font-bold text-slate-600">${formatMoney(data.cost)}</span>
                     </div>
                     <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -1003,56 +1187,38 @@
           });
           html += `</div>`;
         }
-
         html += `</div>`;
       }
 
       // ==========================================
-      // KHU VỰC 2: BIỂU ĐỒ & CHI TIẾT BIẾU TẶNG (Hiển thị khi click Biếu tặng)
+      // KHU VỰC 2: BIỂU ĐỒ & CHI TIẾT BIẾU TẶNG
       // ==========================================
       if (showGiveawayChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
             <h2 class="text-xs font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-2">
               <span class="flex items-center gap-1.5">
-                <i data-lucide="pie-chart" class="w-4 h-4 text-ios-pink"></i> Biểu đồ & Chi tiết Biếu tặng / Hao hụt
+                <i data-lucide="pie-chart" class="w-4 h-4 text-ios-pink"></i> Biểu đồ % Biếu Tặng / Tổng Lãi
               </span>
-              <span class="text-[10px] text-slate-400 font-normal">Đã mở</span>
             </h2>
 
-            <!-- Biểu đồ % Thanh Tiến Trình -->
-            <div class="space-y-3">
-              <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="text-slate-600 font-medium">% Vốn Biếu tặng trên Tổng Vốn Nhập:</span>
-                  <span class="font-bold text-ios-pink">${giveawayVsCapitalPercent}%</span>
-                </div>
-                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div class="bg-ios-pink h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsCapitalPercent, 100)}%"></div>
-                </div>
-                <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng vốn nhập (${formatMoney(totalAllImportCost)})</p>
+            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-600 font-medium">% Vốn Biếu Tặng ăn vào Tổng Lãi:</span>
+                <span class="font-bold text-ios-pink">${giveawayVsProfitPercent}%</span>
               </div>
-
-              <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="text-slate-600 font-medium">% Vốn Biếu tặng ăn vào Tổng Lãi:</span>
-                  <span class="font-bold ${parseFloat(giveawayVsProfitPercent) > 20 ? 'text-ios-red' : 'text-ios-orange'}">${giveawayVsProfitPercent}%</span>
-                </div>
-                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div class="bg-ios-orange h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsProfitPercent, 100)}%"></div>
-                </div>
-                <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng lợi nhuận (${formatMoney(totalProfit)})</p>
+              <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                <div class="bg-ios-pink h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsProfitPercent, 100)}%"></div>
               </div>
+              <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng lãi (${formatMoney(totalProfit)})</p>
             </div>
 
-            <!-- Thống kê Chi tiết Biếu theo Mặt hàng & Theo Đối tượng gộp hoa thường -->
-            <div class="space-y-3 pt-2">
-              <div class="space-y-2">
-                <p class="text-xs font-semibold text-slate-500">1. Tổng hợp Biếu Tặng theo Mặt Hàng:</p>
+            <div class="space-y-3 pt-1">
+              <p class="text-xs font-semibold text-slate-500">1. Chi tiết Biếu Tặng theo Mặt Hàng:</p>
         `;
 
         if (filteredGiveaways.length === 0) {
-          html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có dữ liệu biếu tặng trong khoảng thời gian này</p>`;
+          html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có dữ liệu biếu tặng</p>`;
         } else {
           db.products.forEach(p => {
             const pGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
@@ -1065,22 +1231,20 @@
                 <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl">
                   <div>
                     <span class="font-bold text-slate-800 block">${p.name}</span>
-                    <span class="text-[11px] text-slate-500">Số lượng biếu: <b>${formatNum(gQty)} ${p.unit}</b> (${pGiveaways.length} lượt)</span>
+                    <span class="text-[11px] text-slate-500">Đã biếu: <b>${formatNum(gQty)} ${p.unit}</b> (${pGiveaways.length} lượt)</span>
                   </div>
                   <div class="text-right">
                     <span class="font-bold text-ios-pink block">${formatMoney(gCost)}</span>
-                    <span class="text-[10px] text-slate-400">Chiếm <b>${itemGiveawayPercentOfProfit}%</b> tổng lãi</span>
+                    <span class="text-[10px] text-slate-400">Chiếm <b>${itemGiveawayPercentOfProfit}%</b> lãi</span>
                   </div>
                 </div>
               `;
             }
           });
 
-          // GOM NHÓM KHÔNG PHÂN BIỆT HOA THƯỜNG (bà = Bà, nhà = Nhà)
           let recipientMap = {};
           filteredGiveaways.forEach(g => {
-            let rawNote = g.note ? g.note.trim() : '';
-            let rec = capitalizeWord(rawNote); // Chuẩn hóa hoa thường thành 1 tên dùng chung
+            let rec = capitalizeWord(g.note);
             if (!recipientMap[rec]) recipientMap[rec] = { totalCost: 0, count: 0 };
             recipientMap[rec].totalCost += (g.costValue || 0);
             recipientMap[rec].count += 1;
@@ -1088,7 +1252,7 @@
 
           html += `
             <div class="pt-2 space-y-2">
-              <p class="text-xs font-semibold text-slate-500">2. Tổng hợp theo Đối Tượng / Người Nhận (Gộp hoa & thường):</p>
+              <p class="text-xs font-semibold text-slate-500">2. Theo Đối Tượng / Người Nhận:</p>
               <div class="space-y-1.5">
           `;
 
@@ -1102,28 +1266,104 @@
             `;
           });
 
-          html += `
-              </div>
-            </div>
-          `;
+          html += `</div></div>`;
         }
 
+        html += `</div>`;
+      }
+
+      // ==========================================
+      // KHU VỰC 3: BIỂU ĐỒ & CHI TIẾT HƯ HỎNG
+      // ==========================================
+      if (showDamagedChart) {
         html += `
+          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
+            <h2 class="text-xs font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-2">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="alert-triangle" class="w-4 h-4 text-ios-orange"></i> Biểu đồ % Hư Hỏng / Tổng Lãi
+              </span>
+            </h2>
+
+            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-600 font-medium">% Vốn Hư Hỏng làm giảm Tổng Lãi:</span>
+                <span class="font-bold text-ios-orange">${damagedVsProfitPercent}%</span>
+              </div>
+              <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                <div class="bg-ios-orange h-full rounded-full transition-all duration-500" style="width: ${Math.min(damagedVsProfitPercent, 100)}%"></div>
+              </div>
+              <p class="text-[10px] text-slate-400">Vốn hỏng (${formatMoney(totalDamagedValue)}) / Tổng lãi (${formatMoney(totalProfit)})</p>
             </div>
-          </div>
+
+            <div class="space-y-3 pt-1">
+              <p class="text-xs font-semibold text-slate-500">1. Chi tiết Hư Hỏng theo Mặt Hàng:</p>
         `;
+
+        if (filteredDamaged.length === 0) {
+          html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có ghi nhận hư hỏng</p>`;
+        } else {
+          db.products.forEach(p => {
+            const pDamaged = filteredDamaged.filter(d => d.productId === p.id);
+            if (pDamaged.length > 0) {
+              const dQty = pDamaged.reduce((sum, d) => sum + d.qty, 0);
+              const dCost = pDamaged.reduce((sum, d) => sum + (d.costValue || 0), 0);
+              const itemDamagedPercentOfProfit = totalProfit > 0 ? ((dCost / totalProfit) * 100).toFixed(1) : '0.0';
+
+              html += `
+                <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl">
+                  <div>
+                    <span class="font-bold text-slate-800 block">${p.name}</span>
+                    <span class="text-[11px] text-slate-500">Đã hỏng: <b>${formatNum(dQty)} ${p.unit}</b> (${pDamaged.length} lượt)</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="font-bold text-ios-orange block">${formatMoney(dCost)}</span>
+                    <span class="text-[10px] text-slate-400">Chiếm <b>${itemDamagedPercentOfProfit}%</b> lãi</span>
+                  </div>
+                </div>
+              `;
+            }
+          });
+
+          let reasonMap = {};
+          filteredDamaged.forEach(d => {
+            let reason = capitalizeWord(d.note);
+            if (!reasonMap[reason]) reasonMap[reason] = { totalCost: 0, count: 0 };
+            reasonMap[reason].totalCost += (d.costValue || 0);
+            reasonMap[reason].count += 1;
+          });
+
+          html += `
+            <div class="pt-2 space-y-2">
+              <p class="text-xs font-semibold text-slate-500">2. Theo Nguyên Nhân / Lý Do Hỏng:</p>
+              <div class="space-y-1.5">
+          `;
+
+          Object.keys(reasonMap).forEach(r => {
+            const rData = reasonMap[r];
+            html += `
+              <div class="flex justify-between items-center text-xs bg-orange-50/50 p-2.5 rounded-xl border border-orange-100">
+                <span class="font-medium text-slate-700">⚠️ ${r} <span class="text-[10px] text-slate-400">(${rData.count} lượt)</span></span>
+                <span class="font-bold text-ios-orange">${formatMoney(rData.totalCost)}</span>
+              </div>
+            `;
+          });
+
+          html += `</div></div>`;
+        }
+
+        html += `</div>`;
       }
 
       // Chi tiết kinh doanh theo từng mặt hàng
       html += `
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh theo mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
       `;
 
       if (db.products.length === 0) {
         html += `
           <div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <p class="text-xs">Chưa có sản phẩm nào để thống kê</p>
+            <p class="text-xs">Chưa có sản phẩm nào</p>
           </div>
         `;
       } else {
@@ -1139,6 +1379,10 @@
           const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
           const giveawayVal = itemGiveaways.reduce((sum, g) => sum + (g.costValue || 0), 0);
 
+          const itemDamaged = filteredDamaged.filter(d => d.productId === p.id);
+          const damagedQty = itemDamaged.reduce((sum, d) => sum + d.qty, 0);
+          const damagedVal = itemDamaged.reduce((sum, d) => sum + (d.costValue || 0), 0);
+
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -1148,16 +1392,18 @@
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
-                <div>
+                <div class="space-y-0.5">
                   <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b></p>
                   <p>Đã Bán: <b class="text-slate-700">${formatNum(soldQty)} ${p.unit}</b></p>
-                  <p>Đã Biếu: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
+                  <p>Biếu Tặng: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
+                  <p>Hư Hỏng: <b class="text-ios-orange">${formatNum(damagedQty)} ${p.unit}</b></p>
                   <p>Tồn Kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
                 </div>
                 <div class="text-right space-y-0.5">
                   <p>Doanh thu bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
-                  <p>Tiền vốn bán: <b class="text-slate-800">${formatMoney(itemCost)}</b></p>
-                  <p>Vốn biếu / hao hụt: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
+                  <p>Vốn bán: <b class="text-slate-800">${formatMoney(itemCost)}</b></p>
+                  <p>Vốn biếu: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
+                  <p>Vốn hỏng: <b class="text-ios-orange">${formatMoney(damagedVal)}</b></p>
                 </div>
               </div>
             </div>
