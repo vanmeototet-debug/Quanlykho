@@ -671,8 +671,8 @@
             </div>
 
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Ghi chú (VD: Biếu nhà ăn số 2)</label>
-              <input type="text" id="g-note" placeholder="Nhập tên người nhận hoặc địa điểm..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <label class="block text-xs text-slate-500 mb-1">Ghi chú (Biếu ai / Địa điểm)</label>
+              <input type="text" id="g-note" placeholder="VD: Biếu nhà ăn số 2, Anh Nam..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
 
             <button type="submit" class="w-full bg-ios-pink text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
@@ -706,7 +706,7 @@
                   <span class="text-xs text-slate-400">${g.date}</span>
                 </div>
                 <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod.unit}</b></p>
-                ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 ${g.note}</p>` : ''}
+                ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 Biếu: <b>${g.note}</b></p>` : ''}
               </div>
               <div class="text-right flex items-center gap-3">
                 <span class="text-xs font-bold bg-pink-50 text-ios-pink px-2.5 py-1 rounded-full">
@@ -785,7 +785,7 @@
     }
 
     // ==========================================
-    // 4. REPORTS TAB (BÁO CÁO & PHÂN TÍCH LÃI %)
+    // 4. REPORTS TAB (BÁO CÁO & PHÂN TÍCH CHI TIẾT BIẾU TẶNG / HAO HỤT)
     // ==========================================
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
@@ -845,6 +845,13 @@
         totalGiveawayValue += (g.costValue || 0);
       });
 
+      // Tính tổng tiền vốn nhập của tất cả mặt hàng (hoặc mặt hàng liên quan)
+      let totalAllImportCost = db.products.reduce((sum, p) => sum + (p.totalImportCost || 0), 0);
+
+      // Tính % Biếu tặng / Hao hụt trên Tổng vốn và trên Tổng Lãi
+      let giveawayVsCapitalPercent = totalAllImportCost > 0 ? ((totalGiveawayValue / totalAllImportCost) * 100).toFixed(1) : '0.0';
+      let giveawayVsProfitPercent = totalProfit > 0 ? ((totalGiveawayValue / totalProfit) * 100).toFixed(1) : '0.0';
+
       let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
       sortedMonths.forEach(m => {
         const parts = m.split('-');
@@ -861,7 +868,144 @@
           </select>
         </div>
 
-        <!-- BIỂU ĐỒ CỘT NGANG SO SÁNH CÁC THÁNG -->
+        <!-- Thẻ chỉ số tổng hợp -->
+        <div class="grid grid-cols-1 gap-3 mb-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng</p>
+              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
+            </div>
+            <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
+              <i data-lucide="trending-up" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Kinh Doanh (<b class="text-ios-green">+${avgProfitMargin}%</b> trên vốn)</p>
+              <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
+            </div>
+            <div class="w-10 h-10 ${totalProfit >= 0 ? 'bg-emerald-50 text-ios-green' : 'bg-red-50 text-red-500'} rounded-full flex items-center justify-center">
+              <i data-lucide="piggy-bank" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">Tổng Vốn Biếu Tặng / Hao Hụt</p>
+              <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
+            </div>
+            <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
+              <i data-lucide="gift" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHÂN TÍCH BIỂU ĐỒ % HAO HỤT / BIẾU TẶNG TRÊN TỔNG VỐN & TỔNG LÃI -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
+          <h2 class="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-ios-pink"></i> Tỷ lệ % Hao hụt / Biếu tặng trên Vốn & Lãi
+          </h2>
+
+          <div class="space-y-3 pt-1">
+            <!-- 1. Tỷ lệ % trên Tổng vốn nhập -->
+            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-600 font-medium">Vốn Biếu tặng / Hao hụt trên Tổng Vốn Nhập:</span>
+                <span class="font-bold text-ios-pink">${giveawayVsCapitalPercent}%</span>
+              </div>
+              <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-ios-pink h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsCapitalPercent, 100)}%"></div>
+              </div>
+              <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng vốn nhập (${formatMoney(totalAllImportCost)})</p>
+            </div>
+
+            <!-- 2. Tỷ lệ % trên Tổng Lợi Nhuận -->
+            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-600 font-medium">Chi phí Biếu tặng / Hao hụt ăn vào Tổng Lãi:</span>
+                <span class="font-bold ${parseFloat(giveawayVsProfitPercent) > 20 ? 'text-ios-red' : 'text-ios-orange'}">${giveawayVsProfitPercent}%</span>
+              </div>
+              <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-ios-orange h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsProfitPercent, 100)}%"></div>
+              </div>
+              <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng lợi nhuận (${formatMoney(totalProfit)})</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHÂN TÍCH CHI TIẾT BIẾU TẶNG THEO MẶT HÀNG & BIẾU AI -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
+          <h2 class="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+            <i data-lucide="gift" class="w-4 h-4 text-ios-pink"></i> Chi tiết Biếu Tặng / Hao hụt
+          </h2>
+
+          <!-- Biếu theo Mặt hàng -->
+          <div class="space-y-2">
+            <p class="text-xs font-semibold text-slate-500">1. Tổng hợp theo Mặt Hàng:</p>
+      `;
+
+      if (filteredGiveaways.length === 0) {
+        html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có dữ liệu biếu tặng trong khoảng thời gian này</p>`;
+      } else {
+        // Thống kê biếu tặng theo từng mặt hàng
+        db.products.forEach(p => {
+          const pGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
+          if (pGiveaways.length > 0) {
+            const gQty = pGiveaways.reduce((sum, g) => sum + g.qty, 0);
+            const gCost = pGiveaways.reduce((sum, g) => sum + (g.costValue || 0), 0);
+            const itemGiveawayPercentOfProfit = totalProfit > 0 ? ((gCost / totalProfit) * 100).toFixed(1) : '0.0';
+
+            html += `
+              <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl">
+                <div>
+                  <span class="font-bold text-slate-800 block">${p.name}</span>
+                  <span class="text-[11px] text-slate-500">Số lượng biếu: <b>${formatNum(gQty)} ${p.unit}</b> (${pGiveaways.length} lượt)</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-bold text-ios-pink block">${formatMoney(gCost)}</span>
+                  <span class="text-[10px] text-slate-400">Chiếm <b>${itemGiveawayPercentOfProfit}%</b> tổng lãi</span>
+                </div>
+              </div>
+            `;
+          }
+        });
+
+        // Gom nhóm biếu tặng theo Đối tượng (Biếu ai / Ghi chú)
+        let recipientMap = {};
+        filteredGiveaways.forEach(g => {
+          let rec = g.note ? g.note.trim() : 'Chưa ghi chú / Khác';
+          if (!recipientMap[rec]) recipientMap[rec] = { totalCost: 0, count: 0 };
+          recipientMap[rec].totalCost += (g.costValue || 0);
+          recipientMap[rec].count += 1;
+        });
+
+        html += `
+          <div class="pt-2 space-y-2">
+            <p class="text-xs font-semibold text-slate-500">2. Tổng hợp theo Đối Tượng / Người Nhận (Biếu ai):</p>
+            <div class="space-y-1.5">
+        `;
+
+        Object.keys(recipientMap).forEach(rec => {
+          const recData = recipientMap[rec];
+          html += `
+            <div class="flex justify-between items-center text-xs bg-pink-50/50 p-2 rounded-xl border border-pink-100">
+              <span class="font-medium text-slate-700">🎁 ${rec} <span class="text-[10px] text-slate-400">(${recData.count} lượt)</span></span>
+              <span class="font-bold text-ios-pink">${formatMoney(recData.totalCost)}</span>
+            </div>
+          `;
+        });
+
+        html += `
+            </div>
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+
+      // BIỂU ĐỒ CỘT NGANG SO SÁNH CÁC THÁNG
+      html += `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
           <h2 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
             <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng
@@ -918,42 +1062,10 @@
 
       html += `</div>`;
 
-      // Thẻ chỉ số tổng hợp
+      // Chi tiết theo từng mặt hàng
       html += `
-        <div class="grid grid-cols-1 gap-3 mb-6">
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng</p>
-              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
-            </div>
-            <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
-              <i data-lucide="trending-up" class="w-5 h-5"></i>
-            </div>
-          </div>
-
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">Lợi Nhuận Kinh Doanh (<b class="text-ios-green">+${avgProfitMargin}%</b> trên vốn)</p>
-              <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
-            </div>
-            <div class="w-10 h-10 ${totalProfit >= 0 ? 'bg-emerald-50 text-ios-green' : 'bg-red-50 text-red-500'} rounded-full flex items-center justify-center">
-              <i data-lucide="piggy-bank" class="w-5 h-5"></i>
-            </div>
-          </div>
-
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">Tổng Giá Trị Đã Biếu Tặng</p>
-              <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
-            </div>
-            <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
-              <i data-lucide="gift" class="w-5 h-5"></i>
-            </div>
-          </div>
-        </div>
-
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết lãi % theo từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh theo mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
       `;
 
       if (db.products.length === 0) {
@@ -993,7 +1105,7 @@
                 <div class="text-right space-y-0.5">
                   <p>Doanh thu bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
                   <p>Tiền vốn bán: <b class="text-slate-800">${formatMoney(itemCost)}</b></p>
-                  <p>Vốn biếu tặng: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
+                  <p>Vốn biếu / hao hụt: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
                 </div>
               </div>
             </div>
