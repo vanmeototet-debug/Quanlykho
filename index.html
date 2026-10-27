@@ -597,19 +597,20 @@
                 <div class="p-3 space-y-2 bg-white">
                   ${group.items.map(s => {
                     const prod = db.products.find(p => p.id === s.productId);
+                    const itemMargin = s.marginPercent !== undefined ? s.marginPercent : (s.totalCost > 0 ? ((s.profit / s.totalCost) * 100).toFixed(1) : 0);
                     return `
                       <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
                         <div>
-                          <span class="font-bold text-slate-800 text-xs">${prod.name}</span>
+                          <span class="font-bold text-slate-800 text-xs">${prod ? prod.name : 'Sản phẩm'}</span>
                           <p class="text-[11px] text-slate-500 mt-0.5">
-                            Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod.unit}</b> (${formatMoney(s.actualUnitPrice)} / ${prod.unit})
+                            Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod ? prod.unit : ''}</b> (${formatMoney(s.actualUnitPrice)} / ${prod ? prod.unit : ''})
                           </p>
                         </div>
                         <div class="text-right flex items-center gap-2.5">
                           <div>
                             <p class="text-xs font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
                             <p class="text-[11px] font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                              Lãi: ${formatMoney(s.profit)} (${s.marginPercent}%)
+                              Lãi: ${formatMoney(s.profit)} (${itemMargin}%)
                             </p>
                           </div>
                           <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán này">
