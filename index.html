@@ -136,6 +136,7 @@
     let showProfitChart = true;
     let showGiveawayChart = true;
     let showDamagedChart = true;
+    let openDailySalesMap = {}; // Trạng thái đóng/mở danh sách theo ngày
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -238,6 +239,15 @@
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `Ngày ${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
     }
 
     function toggleSheetModal(show) {
@@ -445,8 +455,14 @@
     }
 
     // ==========================================
-    // 2. SALES TAB (BÁN HÀNG)
+    // 2. SALES TAB (BÁN HÀNG - CÓ TÍNH NĂNG NHÓM THEO NGÀY & MŨI TÊN XỔ)
     // ==========================================
+    function toggleDailySalesGroup(dateKey) {
+      openDailySalesMap[dateKey] = !openDailySalesMap[dateKey];
+      renderSales();
+      lucide.createIcons();
+    }
+
     function renderSales() {
       const container = document.getElementById('app-content');
 
@@ -502,7 +518,7 @@
         </div>
 
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử giao dịch bán</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử bán hàng theo ngày</h2>
       `;
 
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
@@ -515,31 +531,96 @@
           </div>
         `;
       } else {
-        const sortedSales = [...validSales].reverse();
-        sortedSales.forEach(s => {
-          const prod = db.products.find(p => p.id === s.productId);
+        // Gom nhóm theo ngày bán
+        let dailyGroupMap = {};
+        validSales.forEach(s => {
+          const dateKey = s.date || 'Chưa rõ ngày';
+          if (!dailyGroupMap[dateKey]) {
+            dailyGroupMap[dateKey] = {
+              revenue: 0,
+              cost: 0,
+              profit: 0,
+              items: []
+            };
+          }
+          dailyGroupMap[dateKey].revenue += (s.totalRevenue || 0);
+          dailyGroupMap[dateKey].cost += (s.totalCost || 0);
+          dailyGroupMap[dateKey].profit += (s.profit || 0);
+          dailyGroupMap[dateKey].items.push(s);
+        });
+
+        const sortedDates = Object.keys(dailyGroupMap).sort().reverse();
+
+        // Mặc định mở ngày mới nhất nếu chưa từng đóng/mở
+        if (sortedDates.length > 0 && openDailySalesMap[sortedDates[0]] === undefined) {
+          openDailySalesMap[sortedDates[0]] = true;
+        }
+
+        sortedDates.forEach(dateKey => {
+          const group = dailyGroupMap[dateKey];
+          const marginPercent = group.cost > 0 ? ((group.profit / group.cost) * 100).toFixed(1) : 0;
+          const isOpen = !!openDailySalesMap[dateKey];
+
           html += `
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
-              <div>
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-slate-900">${prod.name}</span>
-                  <span class="text-xs text-slate-400">${s.date}</span>
-                </div>
-                <p class="text-xs text-slate-500 mt-1">
-                  Đã bán: <b class="text-slate-700">${formatNum(s.qty)} ${prod.unit}</b> (Giá bán thực tế: ${formatMoney(s.actualUnitPrice)} / ${prod.unit})
-                </p>
-              </div>
-              <div class="text-right flex items-center gap-3">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
+              <!-- Header Tổng Ngày (Bấm vào để xổ ra / thu gọn) -->
+              <div onclick="toggleDailySalesGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
                 <div>
-                  <p class="text-sm font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
-                  <p class="text-xs font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                    Lãi: ${formatMoney(s.profit)} (${s.marginPercent}%)
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                      <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}
+                    </span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                      ${group.items.length} mặt hàng
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Doanh thu: <b class="text-slate-800">${formatMoney(group.revenue)}</b>
                   </p>
                 </div>
-                <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+
+                <div class="text-right flex items-center gap-3">
+                  <div>
+                    <span class="text-xs font-bold ${group.profit >= 0 ? 'text-ios-green' : 'text-ios-red'} block">
+                      Lãi: ${formatMoney(group.profit)}
+                    </span>
+                    <span class="text-[10px] font-bold text-ios-green bg-emerald-50 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
+                      +${marginPercent}% vốn
+                    </span>
+                  </div>
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
+                </div>
               </div>
+
+              <!-- Chi tiết danh sách mặt hàng bán trong ngày -->
+              ${isOpen ? `
+                <div class="p-3 space-y-2 bg-white">
+                  ${group.items.map(s => {
+                    const prod = db.products.find(p => p.id === s.productId);
+                    return `
+                      <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
+                        <div>
+                          <span class="font-bold text-slate-800 text-xs">${prod.name}</span>
+                          <p class="text-[11px] text-slate-500 mt-0.5">
+                            Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod.unit}</b> (${formatMoney(s.actualUnitPrice)} / ${prod.unit})
+                          </p>
+                        </div>
+                        <div class="text-right flex items-center gap-2.5">
+                          <div>
+                            <p class="text-xs font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
+                            <p class="text-[11px] font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
+                              Lãi: ${formatMoney(s.profit)} (${s.marginPercent}%)
+                            </p>
+                          </div>
+                          <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán này">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
             </div>
           `;
         });
@@ -611,6 +692,9 @@
       const marginPercent = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
 
       prod.currentStock -= qty;
+
+      // Mặc định mở danh sách của ngày vừa thêm đơn
+      openDailySalesMap[date] = true;
 
       db.sales.push({
         id: 'S_' + Date.now(),
@@ -1127,9 +1211,7 @@
         </div>
       `;
 
-      // ==========================================
       // KHU VỰC 1: BIỂU ĐỒ DOANH THU & LỢI NHUẬN
-      // ==========================================
       if (showProfitChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3 transition-all">
@@ -1190,9 +1272,7 @@
         html += `</div>`;
       }
 
-      // ==========================================
       // KHU VỰC 2: BIỂU ĐỒ & CHI TIẾT BIẾU TẶNG
-      // ==========================================
       if (showGiveawayChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
@@ -1272,9 +1352,7 @@
         html += `</div>`;
       }
 
-      // ==========================================
       // KHU VỰC 3: BIỂU ĐỒ & CHI TIẾT HƯ HỎNG
-      // ==========================================
       if (showDamagedChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
