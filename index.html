@@ -45,7 +45,7 @@
 <body class="h-full font-sans antialiased text-slate-800 flex flex-col bg-ios-bg">
 
   <!-- Header -->
-  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe">
+  <header class="bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe">
     <div class="px-4 py-3 flex items-center justify-between">
       <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
       <div class="flex items-center gap-1">
@@ -126,6 +126,7 @@
   <script>
     let db = {
       products: [], 
+      imports: [], // Lịch sử nhập hàng chi tiết
       sales: [],
       giveaways: [],
       damaged: []
@@ -136,13 +137,15 @@
     let showProfitChart = true;
     let showGiveawayChart = true;
     let showDamagedChart = true;
-    let openDailySalesMap = {}; // Trạng thái đóng/mở danh sách theo ngày
+    let openDailySalesMap = {}; // Trạng thái mở/đóng lịch sử bán hàng theo ngày
+    let openDailyImportsMap = {}; // Trạng thái mở/đóng lịch sử nhập hàng theo ngày
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
       if (stored) {
         try {
           db = JSON.parse(stored);
+          if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
         } catch(e) {
@@ -198,6 +201,7 @@
       window.handleSheetData = function(data) {
         if (data && data.products) {
           db = data;
+          if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
           localStorage.setItem('app_inventory_db', JSON.stringify(db));
@@ -295,6 +299,12 @@
     // ==========================================
     // 1. PRODUCTS TAB (SẢN PHẨM & TỒN KHO)
     // ==========================================
+    function toggleDailyImportsGroup(dateKey) {
+      openDailyImportsMap[dateKey] = !openDailyImportsMap[dateKey];
+      renderProducts();
+      lucide.createIcons();
+    }
+
     function renderProducts() {
       const container = document.getElementById('app-content');
       
@@ -304,18 +314,24 @@
             <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập thêm sản phẩm
           </h2>
           <form onsubmit="handleAddProduct(event)" class="space-y-3">
-            <div>
-              <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
-              <input type="text" id="p-name" required placeholder="VD: Gấc, Cam Sành, Khoai lang..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
-            </div>
-
             <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
+                <input type="text" id="p-name" required placeholder="Gấc, Cam Sành..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
                 <input type="text" id="p-unit" required placeholder="kg, quả, túi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-xs text-slate-500 mb-1">Số lượng nhập thêm</label>
+                <label class="block text-xs text-slate-500 mb-1">Ngày nhập</label>
+                <input type="date" id="p-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng nhập</label>
                 <input type="number" step="any" id="p-qty" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
@@ -342,37 +358,126 @@
           </form>
         </div>
 
-        <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Danh sách sản phẩm (${db.products.length})</h2>
+        <!-- Tồn kho hiện tại của các sản phẩm -->
+        <div class="space-y-3 mb-6">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại (${db.products.length} sản phẩm)</h2>
+          <div class="grid grid-cols-1 gap-2">
       `;
 
       if (db.products.length === 0) {
         html += `
-          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="package-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm">Chưa có sản phẩm nào</p>
+          <div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <p class="text-xs">Chưa có sản phẩm nào trong kho</p>
           </div>
         `;
       } else {
         db.products.forEach(p => {
           html += `
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-start">
-              <div class="space-y-1">
-                <span class="font-bold text-slate-900 text-base">${p.name}</span>
-                <div class="text-xs text-slate-500 space-y-0.5">
-                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b> (Tổng tiền: ${formatMoney(p.totalImportCost)})</p>
-                  <p>Giá nhập TB: <b class="text-slate-700">${formatMoney(p.avgImportCost)} / ${p.unit}</b></p>
-                  <p>Gợi ý giá bán (>50%): <b class="text-ios-green">${formatMoney(p.minSuggestPrice)} / ${p.unit}</b></p>
-                </div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex justify-between items-center text-xs">
+              <div>
+                <span class="font-bold text-slate-900 text-sm">${p.name}</span>
+                <p class="text-slate-500 mt-0.5">Giá nhập TB: <b class="text-slate-700">${formatMoney(p.avgImportCost)}/${p.unit}</b> | Gợi ý bán: <b class="text-ios-green">${formatMoney(p.minSuggestPrice)}/${p.unit}</b></p>
               </div>
-              <div class="text-right flex flex-col justify-between items-end h-full">
-                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${p.currentStock > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}">
+              <div class="text-right flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-full font-bold ${p.currentStock > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}">
                   Tồn: ${formatNum(p.currentStock)} ${p.unit}
                 </span>
-                <button onclick="deleteProduct('${p.id}')" class="mt-4 text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
+                <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
                   <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
               </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div></div>`;
+
+      // Nhật ký nhập hàng theo ngày (có mũi tên thu gọn/mở rộng)
+      html += `
+        <div class="space-y-3">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Nhật ký nhập hàng theo ngày</h2>
+      `;
+
+      const validImports = db.imports || [];
+      if (validImports.length === 0) {
+        html += `
+          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <i data-lucide="package-plus" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-sm">Chưa có lịch sử nhập hàng</p>
+          </div>
+        `;
+      } else {
+        let dailyImportMap = {};
+        validImports.forEach(imp => {
+          const dateKey = imp.date || 'Chưa rõ ngày';
+          if (!dailyImportMap[dateKey]) {
+            dailyImportMap[dateKey] = {
+              totalMoney: 0,
+              items: []
+            };
+          }
+          dailyImportMap[dateKey].totalMoney += (imp.totalCost || 0);
+          dailyImportMap[dateKey].items.push(imp);
+        });
+
+        const sortedImportDates = Object.keys(dailyImportMap).sort().reverse();
+        if (sortedImportDates.length > 0 && openDailyImportsMap[sortedImportDates[0]] === undefined) {
+          openDailyImportsMap[sortedImportDates[0]] = true;
+        }
+
+        sortedImportDates.forEach(dateKey => {
+          const group = dailyImportMap[dateKey];
+          const isOpen = !!openDailyImportsMap[dateKey];
+
+          html += `
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
+              <!-- Header Nhập Ngày (Bấm vào để xổ ra / thu gọn) -->
+              <div onclick="toggleDailyImportsGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                      <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}
+                    </span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                      ${group.items.length} mặt hàng
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Tổng tiền ngày nhập: <b class="text-slate-900 font-bold">${formatMoney(group.totalMoney)}</b>
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
+                </div>
+              </div>
+
+              <!-- Chi tiết các mặt hàng nhập trong ngày -->
+              ${isOpen ? `
+                <div class="p-3 space-y-2 bg-white">
+                  ${group.items.map(imp => {
+                    const prod = db.products.find(p => p.id === imp.productId);
+                    return `
+                      <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
+                        <div>
+                          <span class="font-bold text-slate-800 text-xs">${imp.productName || (prod ? prod.name : 'Sản phẩm')}</span>
+                          <p class="text-[11px] text-slate-500 mt-0.5">
+                            Số lượng nhập: <b class="text-slate-700">${formatNum(imp.qty)} ${imp.unit || (prod ? prod.unit : '')}</b> (${formatMoney(imp.avgCost)} / ${imp.unit || (prod ? prod.unit : '')})
+                          </p>
+                        </div>
+                        <div class="text-right flex items-center gap-2.5">
+                          <div>
+                            <p class="text-xs font-bold text-slate-900">${formatMoney(imp.totalCost)}</p>
+                          </div>
+                          <button onclick="deleteImport('${imp.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đợt nhập này">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
             </div>
           `;
         });
@@ -402,6 +507,7 @@
       e.preventDefault();
       const name = document.getElementById('p-name').value.trim();
       const unit = document.getElementById('p-unit').value.trim();
+      const date = document.getElementById('p-date').value;
       const importQty = parseFloat(document.getElementById('p-qty').value) || 0;
       const totalImportCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
 
@@ -411,8 +517,10 @@
       }
 
       let existingProd = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
+      let productId = '';
 
       if (existingProd) {
+        productId = existingProd.id;
         existingProd.importQty += importQty;
         existingProd.totalImportCost += totalImportCost;
         existingProd.currentStock += importQty;
@@ -420,11 +528,12 @@
         existingProd.minSuggestPrice = existingProd.avgImportCost * 1.5;
         existingProd.unit = unit;
       } else {
+        productId = 'P_' + Date.now();
         const avgImportCost = totalImportCost / importQty;
         const minSuggestPrice = avgImportCost * 1.5;
 
         const newProd = {
-          id: 'P_' + Date.now(),
+          id: productId,
           name,
           unit,
           importQty,
@@ -437,14 +546,53 @@
         db.products.push(newProd);
       }
 
+      if (!db.imports) db.imports = [];
+      db.imports.push({
+        id: 'IMP_' + Date.now(),
+        date,
+        productId,
+        productName: name,
+        unit,
+        qty: importQty,
+        totalCost: totalImportCost,
+        avgCost: totalImportCost / importQty
+      });
+
+      openDailyImportsMap[date] = true;
+
       saveDB();
       renderProducts();
       lucide.createIcons();
     }
 
+    function deleteImport(importId) {
+      if (confirm("Bạn có chắc muốn xóa đợt nhập hàng này?")) {
+        const imp = (db.imports || []).find(i => i.id === importId);
+        if (imp) {
+          const prod = db.products.find(p => p.id === imp.productId);
+          if (prod) {
+            prod.importQty -= imp.qty;
+            prod.totalImportCost -= imp.totalCost;
+            prod.currentStock -= imp.qty;
+            if (prod.importQty > 0) {
+              prod.avgImportCost = prod.totalImportCost / prod.importQty;
+              prod.minSuggestPrice = prod.avgImportCost * 1.5;
+            } else {
+              db.products = db.products.filter(p => p.id !== prod.id);
+            }
+          }
+          db.imports = db.imports.filter(i => i.id !== importId);
+          saveDB();
+          renderProducts();
+          lucide.createIcons();
+        }
+      }
+    }
+
     function deleteProduct(id) {
-      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử bán hàng, biếu tặng và hư hỏng liên quan. Bạn có chắc chắn?")) {
+      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử nhập, bán, biếu tặng và hư hỏng liên quan. Bạn có chắc chắn?")) {
         db.products = db.products.filter(p => p.id !== id);
+        db.imports = (db.imports || []).filter(i => i.productId !== id);
         db.sales = db.sales.filter(s => s.productId !== id);
         if (db.giveaways) db.giveaways = db.giveaways.filter(g => g.productId !== id);
         if (db.damaged) db.damaged = db.damaged.filter(d => d.productId !== id);
@@ -455,7 +603,7 @@
     }
 
     // ==========================================
-    // 2. SALES TAB (BÁN HÀNG - CÓ TÍNH NĂNG NHÓM THEO NGÀY & MŨI TÊN XỔ)
+    // 2. SALES TAB (BÁN HÀNG)
     // ==========================================
     function toggleDailySalesGroup(dateKey) {
       openDailySalesMap[dateKey] = !openDailySalesMap[dateKey];
@@ -531,7 +679,6 @@
           </div>
         `;
       } else {
-        // Gom nhóm theo ngày bán
         let dailyGroupMap = {};
         validSales.forEach(s => {
           const dateKey = s.date || 'Chưa rõ ngày';
@@ -551,7 +698,6 @@
 
         const sortedDates = Object.keys(dailyGroupMap).sort().reverse();
 
-        // Mặc định mở ngày mới nhất nếu chưa từng đóng/mở
         if (sortedDates.length > 0 && openDailySalesMap[sortedDates[0]] === undefined) {
           openDailySalesMap[sortedDates[0]] = true;
         }
@@ -563,7 +709,6 @@
 
           html += `
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
-              <!-- Header Tổng Ngày (Bấm vào để xổ ra / thu gọn) -->
               <div onclick="toggleDailySalesGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
                 <div>
                   <div class="flex items-center gap-2">
@@ -592,7 +737,6 @@
                 </div>
               </div>
 
-              <!-- Chi tiết danh sách mặt hàng bán trong ngày -->
               ${isOpen ? `
                 <div class="p-3 space-y-2 bg-white">
                   ${group.items.map(s => {
@@ -694,7 +838,6 @@
 
       prod.currentStock -= qty;
 
-      // Mặc định mở danh sách của ngày vừa thêm đơn
       openDailySalesMap[date] = true;
 
       db.sales.push({
@@ -741,7 +884,7 @@
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
-            <i data-lucide="gift" class="w-5 h-5 mr-2 text-ios-pink"></i> Ghi nhận biếu tặng (nhà ăn, từ thiện...)
+            <i data-lucide="gift" class="w-5 h-5 mr-2 text-ios-pink"></i> Ghi nhận biếu tặng
           </h2>
           <form onsubmit="handleAddGiveaway(event)" class="space-y-3">
             <div>
@@ -875,7 +1018,7 @@
     }
 
     // ==========================================
-    // 4. DAMAGED TAB (HƯ HỎNG & HAO HỤT)
+    // 4. DAMAGED TAB (HƯ HỎNG)
     // ==========================================
     function renderDamaged() {
       const container = document.getElementById('app-content');
@@ -887,7 +1030,7 @@
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
-            <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 text-ios-orange"></i> Ghi nhận Hư hỏng / Dập nát / Hao hụt
+            <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 text-ios-orange"></i> Ghi nhận Hư hỏng / Hao hụt
           </h2>
           <form onsubmit="handleAddDamaged(event)" class="space-y-3">
             <div>
@@ -911,7 +1054,7 @@
 
             <div>
               <label class="block text-xs text-slate-500 mb-1">Nguyên nhân / Ghi chú</label>
-              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển, hỏng thối, bay hơi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển, hỏng thối..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
 
             <button type="submit" class="w-full bg-ios-orange text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
@@ -1021,7 +1164,7 @@
     }
 
     // ==========================================
-    // 5. REPORTS TAB (BÁO CÁO & PHÂN TÍCH)
+    // 5. REPORTS TAB (BÁO CÁO)
     // ==========================================
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
@@ -1061,7 +1204,6 @@
       const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
       const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
 
-      // Gom nhóm theo tháng (YYYY-MM)
       let monthlyMap = {};
 
       validSales.forEach(s => {
@@ -1089,7 +1231,6 @@
 
       const sortedMonths = Object.keys(monthlyMap).sort().reverse();
 
-      // Lọc giao dịch theo tháng được chọn
       let filteredSales = validSales;
       let filteredGiveaways = validGiveaways;
       let filteredDamaged = validDamaged;
@@ -1117,7 +1258,6 @@
       let totalDamagedValue = 0;
       filteredDamaged.forEach(d => totalDamagedValue += (d.costValue || 0));
 
-      // Tính % Biếu tặng và Hư hỏng trên Lãi
       let giveawayVsProfitPercent = totalProfit > 0 ? ((totalGiveawayValue / totalProfit) * 100).toFixed(1) : '0.0';
       let damagedVsProfitPercent = totalProfit > 0 ? ((totalDamagedValue / totalProfit) * 100).toFixed(1) : '0.0';
 
@@ -1129,7 +1269,6 @@
       });
 
       let html = `
-        <!-- Bộ lọc tháng -->
         <div class="bg-white rounded-2xl p-3 shadow-sm mb-4 border border-slate-100 flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-600">Thời gian báo cáo:</span>
           <select id="report-month-select" onchange="changeReportMonth(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ios-blue text-slate-800">
@@ -1137,9 +1276,7 @@
           </select>
         </div>
 
-        <!-- Các Thẻ Chỉ Số Báo Cáo -->
         <div class="grid grid-cols-1 gap-3 mb-4">
-          <!-- 1. Doanh Thu -->
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
               <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng</p>
@@ -1150,7 +1287,6 @@
             </div>
           </div>
 
-          <!-- 2. Lợi Nhuận -->
           <div onclick="toggleProfitChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
             <div>
               <div class="flex items-center gap-1.5">
@@ -1170,7 +1306,6 @@
             </div>
           </div>
 
-          <!-- 3. Biếu Tặng -->
           <div onclick="toggleGiveawayChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
             <div>
               <div class="flex items-center gap-1.5">
@@ -1190,7 +1325,6 @@
             </div>
           </div>
 
-          <!-- 4. Hư Hỏng -->
           <div onclick="toggleDamagedChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
             <div>
               <div class="flex items-center gap-1.5">
@@ -1212,7 +1346,6 @@
         </div>
       `;
 
-      // KHU VỰC 1: BIỂU ĐỒ DOANH THU & LỢI NHUẬN
       if (showProfitChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3 transition-all">
@@ -1273,7 +1406,6 @@
         html += `</div>`;
       }
 
-      // KHU VỰC 2: BIỂU ĐỒ & CHI TIẾT BIẾU TẶNG
       if (showGiveawayChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
@@ -1349,11 +1481,9 @@
 
           html += `</div></div>`;
         }
-
         html += `</div>`;
       }
 
-      // KHU VỰC 3: BIỂU ĐỒ & CHI TIẾT HƯ HỎNG
       if (showDamagedChart) {
         html += `
           <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
@@ -1429,11 +1559,9 @@
 
           html += `</div></div>`;
         }
-
         html += `</div>`;
       }
 
-      // Chi tiết kinh doanh theo từng mặt hàng
       html += `
         <div class="space-y-3">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
