@@ -134,15 +134,21 @@
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
           
-          // Tự động quét và quy đổi dữ liệu cũ sang cấu trúc lô (batches)
+          // Khôi phục và tái tạo batches từ lịch sử nhập hàng (imports) nếu bị thiếu
           if (db.products) {
             db.products.forEach(p => {
-              if (!p.batches || p.batches.length === 0) {
-                let costVal = p.totalImportCost || 0;
+              let matchedImports = db.imports.filter(i => i.productId === p.id);
+              if (matchedImports.length > 0) {
+                p.batches = matchedImports.map(imp => ({
+                  batchId: imp.id || ('B_' + Date.now()),
+                  date: imp.date,
+                  qty: imp.qty,
+                  cost: imp.totalCost,
+                  recoveredRevenue: 0
+                }));
+              } else if (!p.batches || p.batches.length === 0) {
+                let costVal = p.totalImportCost || (p.currentStock * (p.avgImportCost || 0)) || 0;
                 let qtyVal = p.importQty || p.currentStock || 0;
-                if (costVal === 0 && p.avgImportCost && p.currentStock) {
-                  costVal = p.currentStock * p.avgImportCost;
-                }
                 p.batches = [{
                   batchId: 'B_' + Date.now(),
                   date: getTodayString(),
@@ -999,7 +1005,7 @@
           </div>
           <div>
             <p class="text-3xl font-black">${formatMoney(todayWithdrawableProfit)}</p>
-            <p class="text-[11px] text-emerald-100 mt-0.5">Tiền lời thu về từ các mặt hàng đã hoàn $100\%$ vốn gốc</p>
+            <p class="text-[11px] text-emerald-100 mt-0.5">Tiền lời thu về từ các mặt hàng đã hoàn 100% vốn gốc</p>
           </div>
           <div class="bg-white/95 text-slate-800 rounded-xl p-3 space-y-1.5 mt-2">
             ${todayProfitDetails.length > 0 ? todayProfitDetails.join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu sản phẩm</p>'}
