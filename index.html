@@ -124,7 +124,7 @@
     let googleSheetUrl = '';
     let openDailySalesMap = {};
     let openDailyImportsMap = {};
-    let selectedReportMonth = ''; // Dùng cho bộ lọc tháng ở báo cáo
+    let selectedReportMonth = '';
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -135,27 +135,19 @@
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
           
+          // Rebuild batches from imports if missing or out of sync
           if (db.products) {
             db.products.forEach(p => {
               let matchedImports = db.imports.filter(i => i.productId === p.id);
-              if (matchedImports.length > 0) {
+              if (matchedImports.length > 0 && (!p.batches || p.batches.length === 0)) {
                 p.batches = matchedImports.map(imp => ({
-                  batchId: imp.id || ('B_' + Date.now()),
+                  batchId: imp.id,
                   date: imp.date,
                   qty: imp.qty,
+                  originalQty: imp.qty,
                   cost: imp.totalCost,
                   recoveredRevenue: 0
                 }));
-              } else if (!p.batches || p.batches.length === 0) {
-                let costVal = p.totalImportCost || 0;
-                let qtyVal = p.importQty || p.currentStock || 0;
-                p.batches = [{
-                  batchId: 'B_' + Date.now(),
-                  date: getTodayString(),
-                  qty: qtyVal > 0 ? qtyVal : (p.currentStock || 0),
-                  cost: costVal,
-                  recoveredRevenue: 0
-                }];
               }
             });
           }
@@ -428,6 +420,7 @@
 
       let prod = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
       let productId = '';
+      const batchId = 'BATCH_' + Date.now();
 
       if (!prod) {
         productId = 'P_' + Date.now();
@@ -446,9 +439,10 @@
       }
 
       prod.batches.push({
-        batchId: 'BATCH_' + Date.now(),
+        batchId,
         date,
         qty: importQty,
+        originalQty: importQty,
         cost: totalImportCost,
         recoveredRevenue: 0
       });
@@ -457,7 +451,7 @@
 
       if (!db.imports) db.imports = [];
       db.imports.push({
-        id: 'IMP_' + Date.now(),
+        id: batchId,
         date,
         productId,
         productName: name,
@@ -473,14 +467,14 @@
     }
 
     function deleteImport(importId) {
-      if (confirm("Bạn có chắc muốn xóa đợt nhập hàng này?")) {
+      if (confirm("Bạn có chắc muốn xóa đợt nhập hàng này? Số lượng tồn kho và tổng vốn sẽ tự động trừ đi.")) {
         const imp = (db.imports || []).find(i => i.id === importId);
         if (imp) {
           const prod = db.products.find(p => p.id === imp.productId);
           if (prod) {
             prod.currentStock -= imp.qty;
             if (prod.batches) {
-              prod.batches = prod.batches.filter(b => b.cost !== imp.totalCost || b.qty !== imp.qty);
+              prod.batches = prod.batches.filter(b => b.batchId !== importId);
             }
             if (prod.currentStock <= 0 && (!prod.batches || prod.batches.length === 0)) {
               db.products = db.products.filter(p => p.id !== prod.id);
@@ -955,7 +949,6 @@
     function renderReports() {
       const container = document.getElementById('app-content');
       
-      // Lấy danh sách các tháng có phát sinh giao dịch bán hoặc nhập
       let availableMonths = new Set();
       (db.sales || []).forEach(s => { if (s.date) availableMonths.add(s.date.substring(0, 7)); });
       (db.imports || []).forEach(i => { if (i.date) availableMonths.add(i.date.substring(0, 7)); });
@@ -966,7 +959,6 @@
         selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
       }
 
-      // Lọc dữ liệu theo tháng được chọn
       const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
       const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
 
@@ -985,32 +977,23 @@
           let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
           let stock = p.currentStock || 0;
 
-          let pMonthSales = filteredSales.filter(s => s.productId === p.id);
-          let pMonthRev = pMonthSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
-          let pMonthCost = pMonthSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
-          let pMonthProfit = pMonthRev - pMonthCost;
-
           if (totalCostP === 0 && totalRecoveredP > 0) {
-            totalWithdrawableProfit += pMonthProfit;
-            profitDetails.push({
-              text: `🟢 <b>${p.name}</b>: +${formatMoney(pMonthProfit)}`
-            });
-          } else if (totalRecoveredP >= totalCostP) {
-            totalWithdrawableProfit += pMonthProfit;
-            profitDetails.push({
-              text: `🟢 <b>${p.name}</b>: +${formatMoney(pMonthProfit)}`
-            });
+            let itemProfit = totalRecoveredP;
+            totalWithdrawableProfit += itemProfit;
+            let sign = itemProfit >= 0 ? '+' : '';
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
+          } else if (totalRecoveredP >= totalCostP && totalCostP > 0) {
+            let itemProfit = totalRecoveredP - totalCostP;
+            totalWithdrawableProfit += itemProfit;
+            let sign = itemProfit >= 0 ? '+' : '';
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
           } else if (stock === 0) {
             let itemLoss = totalCostP - totalRecoveredP;
             totalWithdrawableProfit -= itemLoss;
-            profitDetails.push({
-              text: `🔴 <b>${p.name}</b>: -${formatMoney(itemLoss)}`
-            });
+            profitDetails.push({ text: `🔴 <b>${p.name}</b>: -${formatMoney(itemLoss)}` });
           } else {
             let remaining = Math.max(totalCostP - totalRecoveredP, 0);
-            profitDetails.push({
-              text: `🟡 <b>${p.name}</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})`
-            });
+            profitDetails.push({ text: `🟡 <b>${p.name}</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})` });
           }
         });
       }
