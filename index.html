@@ -133,18 +133,21 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
-          // Đảm bảo mỗi sản phẩm có cấu trúc batches (lô nhập)
-          db.products.forEach(p => {
-            if (!p.batches) {
-              p.batches = [{
-                batchId: 'B_' + Date.now(),
-                date: getTodayString(),
-                qty: p.importQty || p.currentStock || 0,
-                cost: p.totalImportCost || (p.currentStock * p.avgImportCost) || 0,
-                recoveredRevenue: 0
-              }];
-            }
-          });
+          
+          // Đảm bảo dữ liệu cũ tương thích với cấu trúc lô (batches)
+          if (db.products) {
+            db.products.forEach(p => {
+              if (!p.batches || p.batches.length === 0) {
+                p.batches = [{
+                  batchId: 'B_' + Date.now(),
+                  date: getTodayString(),
+                  qty: p.importQty || p.currentStock || 0,
+                  cost: p.totalImportCost || ((p.currentStock || 0) * (p.avgImportCost || 0)) || 0,
+                  recoveredRevenue: 0
+                }];
+              }
+            });
+          }
         } catch(e) { console.error(e); }
       }
       googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
@@ -241,14 +244,16 @@
       currentTab = tab;
       ['products', 'sales', 'giveaways', 'damaged', 'reports'].forEach(t => {
         const btn = document.getElementById(`nav-${t}`);
-        btn.className = t === tab ? 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue' : 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
+        if (btn) {
+          btn.className = t === tab ? 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue' : 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
+        }
       });
       const titleEl = document.getElementById('page-title');
-      if (tab === 'products') { titleEl.innerText = 'Sản phẩm & Tồn kho'; renderProducts(); }
-      else if (tab === 'sales') { titleEl.innerText = 'Nhật ký Bán hàng'; renderSales(); }
-      else if (tab === 'giveaways') { titleEl.innerText = 'Quản lý Biếu tặng'; renderGiveaways(); }
-      else if (tab === 'damaged') { titleEl.innerText = 'Quản lý Hư hỏng'; renderDamaged(); }
-      else if (tab === 'reports') { titleEl.innerText = 'Báo cáo & Phân tích'; renderReports(); }
+      if (tab === 'products') { if (titleEl) titleEl.innerText = 'Sản phẩm & Tồn kho'; renderProducts(); }
+      else if (tab === 'sales') { if (titleEl) titleEl.innerText = 'Nhật ký Bán hàng'; renderSales(); }
+      else if (tab === 'giveaways') { if (titleEl) titleEl.innerText = 'Quản lý Biếu tặng'; renderGiveaways(); }
+      else if (tab === 'damaged') { if (titleEl) titleEl.innerText = 'Quản lý Hư hỏng'; renderDamaged(); }
+      else if (tab === 'reports') { if (titleEl) titleEl.innerText = 'Báo cáo & Phân tích'; renderReports(); }
       lucide.createIcons();
     }
 
@@ -315,14 +320,12 @@
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
         db.products.forEach(p => {
-          const totalImport = p.batches.reduce((sum, b) => sum + b.cost, 0);
-          const totalQty = p.batches.reduce((sum, b) => sum + b.qty, 0); // tổng tồn
-          const avgCost = totalQty > 0 ? totalImport / (p.currentStock || 1) : 0;
+          const batchCount = p.batches ? p.batches.length : 1;
           html += `
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex justify-between items-center text-xs">
               <div>
                 <span class="font-bold text-slate-900 text-sm">${p.name}</span>
-                <p class="text-slate-500 mt-0.5">Số lô nhập: <b class="text-slate-700">${p.batches.length} đợt</b> | Tồn: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
+                <p class="text-slate-500 mt-0.5">Số lô nhập: <b class="text-slate-700">${batchCount} đợt</b> | Tồn: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
               </div>
               <div class="text-right flex items-center gap-2">
                 <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
@@ -428,19 +431,18 @@
       } else {
         productId = prod.id;
         prod.unit = unit;
+        if (!prod.batches) prod.batches = [];
       }
 
-      // Thêm lô nhập mới (giúp giữ nguyên tiến độ hòa vốn của lô cũ nếu còn tồn)
-      const batchId = 'BATCH_' + Date.now();
       prod.batches.push({
-        batchId,
+        batchId: 'BATCH_' + Date.now(),
         date,
         qty: importQty,
         cost: totalImportCost,
         recoveredRevenue: 0
       });
 
-      prod.currentStock += importQty;
+      prod.currentStock = (prod.currentStock || 0) + importQty;
 
       if (!db.imports) db.imports = [];
       db.imports.push({
@@ -466,9 +468,10 @@
           const prod = db.products.find(p => p.id === imp.productId);
           if (prod) {
             prod.currentStock -= imp.qty;
-            // Xóa lô tương ứng trong batches
-            prod.batches = prod.batches.filter(b => b.cost !== imp.totalCost || b.qty !== imp.qty);
-            if (prod.currentStock <= 0 && prod.batches.length === 0) {
+            if (prod.batches) {
+              prod.batches = prod.batches.filter(b => b.cost !== imp.totalCost || b.qty !== imp.qty);
+            }
+            if (prod.currentStock <= 0 && (!prod.batches || prod.batches.length === 0)) {
               db.products = db.products.filter(p => p.id !== prod.id);
             }
           }
@@ -645,15 +648,6 @@
 
       let estimatedCost = 0;
       if (prod && prod.batches) {
-        let q = qty;
-        for (let b of prod.batches) {
-          if (q <= 0) break;
-          let take = Math.min(b.qty, q);
-          let unitCostOfBatch = b.qty > 0 ? b.cost / (b.qty + (b.soldQtyForCalc || 0)) : 0; 
-          // Ước lượng chi phí theo FIFO
-          q -= take;
-        }
-        // Tính đơn giản bằng giá trung bình hiện tại của kho
         const totalC = prod.batches.reduce((sum, x) => sum + x.cost, 0);
         const totalQ = prod.batches.reduce((sum, x) => sum + x.qty, 0);
         let avgC = totalQ > 0 ? totalC / totalQ : 0;
@@ -677,25 +671,24 @@
       if (qty <= 0) { alert("Số lượng bán phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Tiếp tục?`)) return;
 
-      // Áp dụng thuật toán FIFO vào các lô (batches)
       let remainingQtyToSell = qty;
       let revenuePerUnit = totalRevenue / qty;
       let totalCostCalculated = 0;
 
-      for (let batch of prod.batches) {
-        if (batch.qty > 0 && remainingQtyToSell > 0) {
-          let qtyFromBatch = Math.min(batch.qty, remainingQtyToSell);
-          let costPerUnitOfBatch = batch.qty > 0 ? (batch.cost / (batch.originalQtyForBatch || batch.qty)) : 0; // xấp xỉ đơn giá gốc
-          // Ghi nhớ originalQtyForBatch nếu chưa có
-          if (!batch.originalQtyForBatch) batch.originalQtyForBatch = batch.qty;
+      if (prod.batches) {
+        for (let batch of prod.batches) {
+          if (batch.qty > 0 && remainingQtyToSell > 0) {
+            let qtyFromBatch = Math.min(batch.qty, remainingQtyToSell);
+            if (!batch.originalQty) batch.originalQty = batch.qty;
 
-          let costOfThisPart = qtyFromBatch * (batch.cost / batch.originalQtyForBatch);
-          totalCostCalculated += costOfThisPart;
+            let costOfThisPart = qtyFromBatch * (batch.cost / (batch.originalQty || batch.qty));
+            totalCostCalculated += costOfThisPart;
 
-          batch.qty -= qtyFromBatch;
-          batch.recoveredRevenue += (qtyFromBatch * revenuePerUnit);
+            batch.qty -= qtyFromBatch;
+            batch.recoveredRevenue = (batch.recoveredRevenue || 0) + (qtyFromBatch * revenuePerUnit);
 
-          remainingQtyToSell -= qtyFromBatch;
+            remainingQtyToSell -= qtyFromBatch;
+          }
         }
       }
 
@@ -730,8 +723,7 @@
           const prod = db.products.find(p => p.id === sale.productId);
           if (prod) {
             prod.currentStock += sale.qty;
-            // Hoàn lại kho vào lô gần nhất
-            if (prod.batches.length > 0) {
+            if (prod.batches && prod.batches.length > 0) {
               prod.batches[prod.batches.length - 1].qty += sale.qty;
               prod.batches[prod.batches.length - 1].recoveredRevenue -= sale.totalRevenue;
             }
@@ -791,8 +783,8 @@
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod.name}</span><span class="text-xs text-slate-400">${g.date}</span></div>
-                <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod.unit}</b></p>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${g.date}</span></div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod ? prod.unit : ''}</b></p>
                 ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 Biếu: <b>${g.note}</b></p>` : ''}
               </div>
               <div class="text-right flex items-center gap-3">
@@ -819,9 +811,8 @@
       if (qty <= 0) { alert("Số lượng biếu phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
 
-      // Lấy giá trị vốn theo trung bình kho hiện tại
-      let totalC = prod.batches.reduce((sum, x) => sum + x.cost, 0);
-      let totalQ = prod.batches.reduce((sum, x) => sum + x.qty, 0);
+      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
+      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
       let avgC = totalQ > 0 ? totalC / totalQ : 0;
       const costValue = qty * avgC;
 
@@ -894,8 +885,8 @@
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod.name}</span><span class="text-xs text-slate-400">${d.date}</span></div>
-                <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod.unit}</b></p>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${d.date}</span></div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod ? prod.unit : ''}</b></p>
                 ${d.note ? `<p class="text-[11px] text-slate-400 mt-0.5">⚠️ Lý do: <b>${d.note}</b></p>` : ''}
               </div>
               <div class="text-right flex items-center gap-3">
@@ -922,8 +913,8 @@
       if (qty <= 0) { alert("Số lượng hư hỏng phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
 
-      let totalC = prod.batches.reduce((sum, x) => sum + x.cost, 0);
-      let totalQ = prod.batches.reduce((sum, x) => sum + x.qty, 0);
+      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
+      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
       let avgC = totalQ > 0 ? totalC / totalQ : 0;
       const costValue = qty * avgC;
 
@@ -949,47 +940,48 @@
       }
     }
 
-    // 5. REPORTS TAB
+    // 5. REPORTS TAB (SỬA HOÀN TOÀN LỖI HIỂN THỊ)
     function renderReports() {
       const container = document.getElementById('app-content');
       const todayStr = getTodayString();
-      const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
+      const validSales = db.sales ? db.sales.filter(s => db.products.some(p => p.id === s.productId)) : [];
 
       let totalRevenue = 0;
       validSales.forEach(s => { totalRevenue += (s.totalRevenue || 0); });
 
       let totalImportBudget = 0;
-      db.products.forEach(p => {
-        if (p.batches) {
-          p.batches.forEach(b => totalImportBudget += b.cost);
-        }
-      });
+      if (db.products) {
+        db.products.forEach(p => {
+          if (p.batches) {
+            p.batches.forEach(b => totalImportBudget += (b.cost || 0));
+          }
+        });
+      }
 
-      // Tính tiền lãi hôm nay có thể rút (dựa trên các lô đã hòa vốn 100%)
       let todayWithdrawableProfit = 0;
       let todayProfitDetails = [];
 
-      db.products.forEach(p => {
-        if (!p.batches) return;
-        let pTodaySales = validSales.filter(s => s.productId === p.id && s.date === todayStr);
-        let pTodayRev = pTodaySales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+      if (db.products) {
+        db.products.forEach(p => {
+          let pTodaySales = validSales.filter(s => s.productId === p.id && s.date === todayStr);
+          let pTodayRev = pTodaySales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
 
-        // Kiểm tra xem các lô của sản phẩm này đã hòa vốn tổng thể chưa
-        let totalCostP = p.batches.reduce((sum, b) => sum + b.cost, 0);
-        let totalRecoveredP = p.batches.reduce((sum, b) => sum + b.recoveredRevenue, 0);
+          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
+          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
 
-        if (totalRecoveredP >= totalCostP && totalCostP > 0) {
-          todayWithdrawableProfit += pTodayRev;
-          if (pTodayRev > 0) {
-            todayProfitDetails.push(`<p class="text-xs text-emerald-800">🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Đã hòa vốn -> Rút 100%)</span></p>`);
+          if (totalRecoveredP >= totalCostP && totalCostP > 0) {
+            todayWithdrawableProfit += pTodayRev;
+            if (pTodayRev > 0) {
+              todayProfitDetails.push(`<p class="text-xs text-emerald-800">🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Đã hòa vốn -> Rút 100%)</span></p>`);
+            } else {
+              todayProfitDetails.push(`<p class="text-xs text-slate-500">🟢 <b>${p.name}</b>: Đã hòa vốn (Hôm nay chưa bán phát sinh)</p>`);
+            }
           } else {
-            todayProfitDetails.push(`<p class="text-xs text-slate-500">🟢 <b>${p.name}</b>: Đã hòa vốn (Hôm nay chưa có đơn bán mới)</p>`);
+            let remainingToBreakEven = Math.max(totalCostP - totalRecoveredP, 0);
+            todayProfitDetails.push(`<p class="text-xs text-amber-800">🟡 <b>${p.name}</b>: Đang thu vốn (Còn thiếu ${formatMoney(remainingToBreakEven)} mới hòa gốc)</p>`);
           }
-        } else {
-          let remainingToBreakEven = Math.max(totalCostP - totalRecoveredP, 0);
-          todayProfitDetails.push(`<p class="text-xs text-amber-800">🟡 <b>${p.name}</b>: Đang thu hồi vốn (Còn thiếu ${formatMoney(remainingToBreakEven)} mới hòa gốc)</p>`);
-        }
-      });
+        });
+      }
 
       let html = `
         <!-- THẺ GỢI Ý RÚT TIỀN LÃI HÔM NAY -->
@@ -1037,18 +1029,17 @@
           <h2 class="text-sm font-semibold text-slate-500 px-1">Trạng thái thu hồi vốn & Lãi từng mặt hàng</h2>
       `;
 
-      if (db.products.length === 0) {
+      if (!db.products || db.products.length === 0) {
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
       } else {
         db.products.forEach(p => {
-          let totalCostP = p.batches.reduce((sum, b) => sum + b.cost, 0);
-          let totalRecoveredP = p.batches.reduce((sum, b) => sum + b.recoveredRevenue, 0);
+          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
+          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
           let isBreakEven = totalRecoveredP >= totalCostP && totalCostP > 0;
           let breakEvenPercent = totalCostP > 0 ? Math.min(Math.round((totalRecoveredP / totalCostP) * 100), 100) : 0;
           let remainingCost = Math.max(totalCostP - totalRecoveredP, 0);
 
           let itemSales = validSales.filter(s => s.productId === p.id);
-          let soldQty = itemSales.reduce((sum, s) => sum + s.qty, 0);
           let itemProfit = itemSales.reduce((sum, s) => sum + (s.profit || 0), 0);
 
           html += `
