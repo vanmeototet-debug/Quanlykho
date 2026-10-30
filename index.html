@@ -146,7 +146,7 @@
                   recoveredRevenue: 0
                 }));
               } else if (!p.batches || p.batches.length === 0) {
-                let costVal = p.totalImportCost || (p.currentStock * (p.avgImportCost || 0)) || 0;
+                let costVal = p.totalImportCost || 0;
                 let qtyVal = p.importQty || p.currentStock || 0;
                 p.batches = [{
                   batchId: 'B_' + Date.now(),
@@ -691,7 +691,7 @@
             let qtyFromBatch = Math.min(batch.qty, remainingQtyToSell);
             if (!batch.originalQty) batch.originalQty = batch.qty;
 
-            let costOfThisPart = qtyFromBatch * (batch.cost / (batch.originalQty || batch.qty));
+            let costOfThisPart = batch.cost > 0 ? qtyFromBatch * (batch.cost / (batch.originalQty || batch.qty)) : 0;
             totalCostCalculated += costOfThisPart;
 
             batch.qty -= qtyFromBatch;
@@ -980,10 +980,17 @@
           let pTodaySales = validSales.filter(s => s.productId === p.id && s.date === todayStr);
           let pTodayRev = pTodaySales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
 
-          if (totalRecoveredP >= totalCostP && totalCostP > 0) {
+          // Trường hợp vốn = 0 nhưng có doanh thu (hàng cho tặng bán ra) -> 100% doanh thu là lãi thuần
+          if (totalCostP === 0 && totalRecoveredP > 0) {
+            totalWithdrawableProfit += pTodayRev;
+            profitDetails.push({
+              name: p.name,
+              type: 'green',
+              text: `🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Hàng vốn 0đ -> Lãi thuần 100%)</span>`
+            });
+          } else if (totalRecoveredP >= totalCostP) {
             // ĐÃ HOÀ VỐN HOẶC LÃI
-            let itemProfit = totalRecoveredP - totalCostP;
-            totalWithdrawableProfit += pTodayRev; // Tiền lãi hôm nay rút theo doanh thu bán trong ngày của món đã hoàn vốn
+            totalWithdrawableProfit += pTodayRev;
             profitDetails.push({
               name: p.name,
               type: 'green',
@@ -992,7 +999,7 @@
           } else if (stock === 0) {
             // TỒN KHO BẰNG 0 NHƯNG THU HỒI < VỐN NHẬP -> LỖ (ĐỎ)
             let itemLoss = totalCostP - totalRecoveredP;
-            totalWithdrawableProfit -= itemLoss; // Trừ trực tiếp vào quỹ lãi chung
+            totalWithdrawableProfit -= itemLoss;
             profitDetails.push({
               name: p.name,
               type: 'red',
@@ -1068,7 +1075,15 @@
           let badgeText = '';
           let detailBox = '';
 
-          if (totalRecoveredP >= totalCostP && totalCostP > 0) {
+          if (totalCostP === 0 && totalRecoveredP > 0) {
+            // XANH (VỐN 0Đ NHƯNG CÓ DOANH THU -> LÃI THUẦN)
+            badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            badgeText = '🟢 LÃI THUẦN (VỐN 0Đ)';
+            detailBox = `
+              <p class="text-emerald-600 font-bold">Lãi thực tế: +${formatMoney(totalRecoveredP)}</p>
+              <p class="text-[10px] text-emerald-600">Hàng không mất vốn gốc</p>
+            `;
+          } else if (totalRecoveredP >= totalCostP) {
             // XANH (LÃI / ĐÃ HOÀ VỐN)
             let itemProfit = totalRecoveredP - totalCostP;
             badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
