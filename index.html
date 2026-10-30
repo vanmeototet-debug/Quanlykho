@@ -124,6 +124,7 @@
     let googleSheetUrl = '';
     let openDailySalesMap = {};
     let openDailyImportsMap = {};
+    let selectedReportMonth = ''; // Dùng cho bộ lọc tháng ở báo cáo
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -953,20 +954,27 @@
     // 5. REPORTS TAB
     function renderReports() {
       const container = document.getElementById('app-content');
-      const todayStr = getTodayString();
-      const validSales = db.sales ? db.sales.filter(s => db.products.some(p => p.id === s.productId)) : [];
+      
+      // Lấy danh sách các tháng có phát sinh giao dịch bán hoặc nhập
+      let availableMonths = new Set();
+      (db.sales || []).forEach(s => { if (s.date) availableMonths.add(s.date.substring(0, 7)); });
+      (db.imports || []).forEach(i => { if (i.date) availableMonths.add(i.date.substring(0, 7)); });
+      let sortedMonths = Array.from(availableMonths).sort().reverse();
+
+      const currentMonthStr = getTodayString().substring(0, 7);
+      if (!selectedReportMonth) {
+        selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
+      }
+
+      // Lọc dữ liệu theo tháng được chọn
+      const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
+      const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
 
       let totalRevenue = 0;
-      validSales.forEach(s => { totalRevenue += (s.totalRevenue || 0); });
+      filteredSales.forEach(s => { totalRevenue += (s.totalRevenue || 0); });
 
       let totalImportBudget = 0;
-      if (db.products) {
-        db.products.forEach(p => {
-          if (p.batches) {
-            p.batches.forEach(b => totalImportBudget += (b.cost || 0));
-          }
-        });
-      }
+      filteredImports.forEach(i => { totalImportBudget += (i.totalCost || 0); });
 
       let totalWithdrawableProfit = 0;
       let profitDetails = [];
@@ -977,61 +985,66 @@
           let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
           let stock = p.currentStock || 0;
 
-          let pTodaySales = validSales.filter(s => s.productId === p.id && s.date === todayStr);
-          let pTodayRev = pTodaySales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+          let pMonthSales = filteredSales.filter(s => s.productId === p.id);
+          let pMonthRev = pMonthSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+          let pMonthCost = pMonthSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
+          let pMonthProfit = pMonthRev - pMonthCost;
 
-          // Trường hợp vốn = 0 nhưng có doanh thu (hàng cho tặng bán ra) -> 100% doanh thu là lãi thuần
           if (totalCostP === 0 && totalRecoveredP > 0) {
-            totalWithdrawableProfit += pTodayRev;
+            totalWithdrawableProfit += pMonthProfit;
             profitDetails.push({
-              name: p.name,
-              type: 'green',
-              text: `🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Hàng vốn 0đ -> Lãi thuần 100%)</span>`
+              text: `🟢 <b>${p.name}</b>: +${formatMoney(pMonthProfit)}`
             });
           } else if (totalRecoveredP >= totalCostP) {
-            // ĐÃ HOÀ VỐN HOẶC LÃI
-            totalWithdrawableProfit += pTodayRev;
+            totalWithdrawableProfit += pMonthProfit;
             profitDetails.push({
-              name: p.name,
-              type: 'green',
-              text: `🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Đã hoàn vốn -> Rút 100% doanh thu hôm nay)</span>`
+              text: `🟢 <b>${p.name}</b>: +${formatMoney(pMonthProfit)}`
             });
           } else if (stock === 0) {
-            // TỒN KHO BẰNG 0 NHƯNG THU HỒI < VỐN NHẬP -> LỖ (ĐỎ)
             let itemLoss = totalCostP - totalRecoveredP;
             totalWithdrawableProfit -= itemLoss;
             profitDetails.push({
-              name: p.name,
-              type: 'red',
-              text: `🔴 <b>${p.name}</b>: Lỗ ${formatMoney(itemLoss)} <span class="text-[10px] text-red-600">(Đã hết hàng, thu không đủ vốn)</span>`
+              text: `🔴 <b>${p.name}</b>: -${formatMoney(itemLoss)}`
             });
           } else {
-            // ĐANG TRONG QUÁ TRÌNH HOÀN VỐN (VÀNG)
             let remaining = Math.max(totalCostP - totalRecoveredP, 0);
             profitDetails.push({
-              name: p.name,
-              type: 'yellow',
-              text: `🟡 <b>${p.name}</b>: Đang hoàn vốn (Còn thiếu ${formatMoney(remaining)} mới đủ gốc)`
+              text: `🟡 <b>${p.name}</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})`
             });
           }
         });
       }
 
+      let monthOptions = sortedMonths.map(m => {
+        let parts = m.split('-');
+        return `<option value="${m}" ${selectedReportMonth === m ? 'selected' : ''}>Tháng ${parts[1]}/${parts[0]}</option>`;
+      }).join('');
+
       let html = `
-        <!-- THẺ GỢI Ý RÚT TIỀN LÃI HÔM NAY -->
+        <!-- BỘ LỌC CHỌN THÁNG -->
+        <div class="bg-white rounded-2xl p-3 shadow-sm mb-4 border border-slate-100 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> Chọn tháng xem báo cáo:
+          </span>
+          <select id="report-month-select" onchange="changeReportMonth(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            ${monthOptions || `<option value="${currentMonthStr}">Tháng hiện tại</option>`}
+          </select>
+        </div>
+
+        <!-- THẺ TỔNG HỢP LÃI LỖ -->
         <div class="bg-emerald-500 text-white rounded-2xl p-4 shadow-md mb-4 space-y-2">
           <div class="flex justify-between items-center border-b border-emerald-400/60 pb-2">
             <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center gap-1.5">
-              <i data-lucide="wallet" class="w-4 h-4"></i> Tiền lãi có thể rút bỏ ví hôm nay
+              <i data-lucide="wallet" class="w-4 h-4"></i> Tổng lãi/lỗ trong tháng
             </span>
-            <span class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">${formatDateDisplay(todayStr)}</span>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">${selectedReportMonth}</span>
           </div>
           <div>
             <p class="text-3xl font-black">${formatMoney(totalWithdrawableProfit)}</p>
-            <p class="text-[11px] text-emerald-100 mt-0.5">Tổng lãi thu về sau khi đã bù trừ lỗ và hoàn vốn gốc</p>
+            <p class="text-[11px] text-emerald-100 mt-0.5">Tổng tiền lãi sau khi bù trừ doanh thu và vốn</p>
           </div>
           <div class="bg-white/95 text-slate-800 rounded-xl p-3 space-y-1.5 mt-2">
-            ${profitDetails.length > 0 ? profitDetails.map(d => d.text).join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu sản phẩm</p>'}
+            ${profitDetails.length > 0 ? profitDetails.map(d => `<p class="text-xs">${d.text}</p>`).join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu tháng này</p>'}
           </div>
         </div>
 
@@ -1039,7 +1052,7 @@
         <div class="grid grid-cols-1 gap-3 mb-4">
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
             <div>
-              <p class="text-xs text-slate-400 font-medium">1. Tổng Vốn Đã Chi Nhập Hàng</p>
+              <p class="text-xs text-slate-400 font-medium">1. Vốn Nhập Trong Tháng</p>
               <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalImportBudget)}</p>
             </div>
             <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center">
@@ -1049,7 +1062,7 @@
 
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
             <div>
-              <p class="text-xs text-slate-400 font-medium">2. Tổng Tiền Đã Thu Về (Doanh Thu)</p>
+              <p class="text-xs text-slate-400 font-medium">2. Doanh Thu Trong Tháng</p>
               <p class="text-xl font-extrabold text-ios-blue mt-0.5">${formatMoney(totalRevenue)}</p>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
@@ -1060,7 +1073,7 @@
 
         <!-- TRẠNG THÁI TỪNG MẶT HÀNG -->
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Trạng thái thu hồi vốn & Lãi/Lỗ từng mặt hàng</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết từng mặt hàng</h2>
       `;
 
       if (!db.products || db.products.length === 0) {
@@ -1076,41 +1089,25 @@
           let detailBox = '';
 
           if (totalCostP === 0 && totalRecoveredP > 0) {
-            // XANH (VỐN 0Đ NHƯNG CÓ DOANH THU -> LÃI THUẦN)
             badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-            badgeText = '🟢 LÃI THUẦN (VỐN 0Đ)';
-            detailBox = `
-              <p class="text-emerald-600 font-bold">Lãi thực tế: +${formatMoney(totalRecoveredP)}</p>
-              <p class="text-[10px] text-emerald-600">Hàng không mất vốn gốc</p>
-            `;
+            badgeText = '🟢 LÃI THUẦN';
+            detailBox = `<p class="text-emerald-600 font-bold">+${formatMoney(totalRecoveredP)}</p>`;
           } else if (totalRecoveredP >= totalCostP) {
-            // XANH (LÃI / ĐÃ HOÀ VỐN)
             let itemProfit = totalRecoveredP - totalCostP;
             badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-            badgeText = '🟢 ĐÃ HOÀ VỐN / CÓ LÃI';
-            detailBox = `
-              <p class="text-emerald-600 font-bold">Lãi thực tế: +${formatMoney(itemProfit)}</p>
-              <p class="text-[10px] text-emerald-600">Đã hoàn 100% vốn gốc</p>
-            `;
+            badgeText = '🟢 CÓ LÃI';
+            detailBox = `<p class="text-emerald-600 font-bold">+${formatMoney(itemProfit)}</p>`;
           } else if (stock === 0) {
-            // ĐỎ (HẾT HÀNG MÀ THU HỒI < VỐN -> LỖ)
             let itemLoss = totalCostP - totalRecoveredP;
             badgeClass = 'text-red-700 bg-red-50 border-red-200';
-            badgeText = '🔴 ĐÃ LỖ (HẾT HÀNG)';
-            detailBox = `
-              <p class="text-red-600 font-bold">Thâm hụt (Lỗ): -${formatMoney(itemLoss)}</p>
-              <p class="text-[10px] text-red-500">Tồn kho = 0 nhưng chưa thu đủ vốn</p>
-            `;
+            badgeText = '🔴 LỖ';
+            detailBox = `<p class="text-red-600 font-bold">-${formatMoney(itemLoss)}</p>`;
           } else {
-            // VÀNG (ĐANG HOÀ VỐN)
             let percent = totalCostP > 0 ? Math.min(Math.round((totalRecoveredP / totalCostP) * 100), 100) : 0;
             let remaining = Math.max(totalCostP - totalRecoveredP, 0);
             badgeClass = 'text-amber-700 bg-amber-50 border-amber-200';
             badgeText = `🟡 Đang hoàn vốn (${percent}%)`;
-            detailBox = `
-              <p class="text-amber-700 font-bold">Còn thiếu để đủ gốc:</p>
-              <p class="text-slate-900 font-black">${formatMoney(remaining)}</p>
-            `;
+            detailBox = `<p class="text-slate-900 font-bold">Thiếu: ${formatMoney(remaining)}</p>`;
           }
 
           html += `
@@ -1140,6 +1137,12 @@
       }
       html += `</div>`;
       container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function changeReportMonth(monthVal) {
+      selectedReportMonth = monthVal;
+      renderReports();
     }
 
     function exportData() {
