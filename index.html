@@ -550,7 +550,6 @@
 
         sortedDates.forEach(dateKey => {
           const group = dailyGroupMap[dateKey];
-          // % Lãi trên giá bán (Margin) cho nhóm ngày
           const marginPercent = group.revenue > 0 ? ((group.profit / group.revenue) * 100).toFixed(1) : 0;
           const isOpen = !!openDailySalesMap[dateKey];
 
@@ -866,245 +865,156 @@
       lucide.createIcons();
     }
     function toggleProfitChart() { showProfitChart = !showProfitChart; renderReports(); lucide.createIcons(); }
-    function toggleGiveawayChart() { showGiveawayChart = !showGiveawayChart; renderReports(); lucide.createIcons(); }
-    function toggleDamagedChart() { showDamagedChart = !showDamagedChart; renderReports(); lucide.createIcons(); }
-    function capitalizeWord(str) {
-      if (!str) return 'Chưa ghi chú / Khác';
-      const clean = str.trim().toLowerCase();
-      return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'Chưa ghi chú / Khác';
-    }
 
     function renderReports() {
       const container = document.getElementById('app-content');
+      const todayStr = getTodayString();
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
-      const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
-      const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
-
-      let monthlyMap = {};
-      validSales.forEach(s => {
-        if (!s.date) return;
-        const mKey = s.date.substring(0, 7);
-        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
-        monthlyMap[mKey].revenue += (s.totalRevenue || 0);
-        monthlyMap[mKey].cost += (s.totalCost || 0);
-        monthlyMap[mKey].profit += (s.profit || 0);
-      });
-      validGiveaways.forEach(g => {
-        if (!g.date) return;
-        const mKey = g.date.substring(0, 7);
-        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
-        monthlyMap[mKey].giveawayVal += (g.costValue || 0);
-      });
-      validDamaged.forEach(d => {
-        if (!d.date) return;
-        const mKey = d.date.substring(0, 7);
-        if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
-        monthlyMap[mKey].damagedVal += (d.costValue || 0);
-      });
-
-      const sortedMonths = Object.keys(monthlyMap).sort().reverse();
-      let filteredSales = validSales;
-      let filteredGiveaways = validGiveaways;
-      let filteredDamaged = validDamaged;
-
-      if (selectedReportMonth !== 'ALL') {
-        filteredSales = validSales.filter(s => s.date && s.date.startsWith(selectedReportMonth));
-        filteredGiveaways = validGiveaways.filter(g => g.date && g.date.startsWith(selectedReportMonth));
-        filteredDamaged = validDamaged.filter(d => d.date && d.date.startsWith(selectedReportMonth));
-      }
 
       let totalRevenue = 0, totalCost = 0, totalProfit = 0;
-      filteredSales.forEach(s => {
+      validSales.forEach(s => {
         totalRevenue += (s.totalRevenue || 0);
         totalCost += (s.totalCost || 0);
         totalProfit += (s.profit || 0);
       });
 
-      // % Lãi trên giá bán (Margin) tổng hợp
-      const avgProfitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
-
-      let totalGiveawayValue = 0; filteredGiveaways.forEach(g => totalGiveawayValue += (g.costValue || 0));
-      let totalDamagedValue = 0; filteredDamaged.forEach(d => totalDamagedValue += (d.costValue || 0));
-
-      let giveawayVsProfitPercent = totalProfit > 0 ? ((totalGiveawayValue / totalProfit) * 100).toFixed(1) : '0.0';
-      let damagedVsProfitPercent = totalProfit > 0 ? ((totalDamagedValue / totalProfit) * 100).toFixed(1) : '0.0';
-
-      // Tổng vốn nhập toàn bộ hệ thống hoặc theo bộ lọc
       let totalImportBudget = 0;
       db.products.forEach(p => totalImportBudget += (p.totalImportCost || 0));
 
-      let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
-      sortedMonths.forEach(m => {
-        const parts = m.split('-');
-        monthOptions += `<option value="${m}" ${selectedReportMonth === m ? 'selected' : ''}>Tháng ${parts[1]} / ${parts[0]}</option>`;
+      // Tính tiền lãi hôm nay có thể rút (Theo phương pháp Hoàn vốn trước - Rút lãi sau)
+      let todayWithdrawableProfit = 0;
+      let todayProfitDetails = [];
+
+      db.products.forEach(p => {
+        // Tổng doanh thu đã bán từ trước tới nay của sản phẩm này
+        const pSales = validSales.filter(s => s.productId === p.id);
+        const pTotalRev = pSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+        const pImportCost = p.totalImportCost || 0;
+
+        // Doanh thu hôm nay
+        const pTodaySales = pSales.filter(s => s.date === todayStr);
+        const pTodayRev = pTodaySales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+
+        if (pTotalRev >= pImportCost && pImportCost > 0) {
+          // Đã hòa vốn -> Lãi hôm nay chính là toàn bộ doanh thu bán hôm nay
+          todayWithdrawableProfit += pTodayRev;
+          if (pTodayRev > 0) {
+            todayProfitDetails.push(`<p class="text-xs text-emerald-800">🟢 <b>${p.name}</b>: +${formatMoney(pTodayRev)} <span class="text-[10px] text-emerald-600">(Đã hòa vốn -> Rút 100%)</span></p>`);
+          } else {
+            todayProfitDetails.push(`<p class="text-xs text-slate-500">🟢 <b>${p.name}</b>: Đã hòa vốn (Hôm nay chưa có đơn mới)</p>`);
+          }
+        } else {
+          // Chưa hòa vốn
+          const remainingToBreakEven = pImportCost - pTotalRev;
+          todayProfitDetails.push(`<p class="text-xs text-amber-800">🟡 <b>${p.name}</b>: Đang thu hồi vốn (Còn thiếu ${formatMoney(remainingToBreakEven)} mới hòa gốc)</p>`);
+        }
       });
 
       let html = `
-        <div class="bg-white rounded-2xl p-3 shadow-sm mb-4 border border-slate-100 flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-600">Thời gian báo cáo:</span>
-          <select id="report-month-select" onchange="changeReportMonth(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ios-blue text-slate-800">
-            ${monthOptions}
-          </select>
+        <!-- THẺ GỢI Ý RÚT TIỀN LÃI HÔM NAY -->
+        <div class="bg-emerald-500 text-white rounded-2xl p-4 shadow-md mb-4 space-y-2">
+          <div class="flex justify-between items-center border-b border-emerald-400/60 pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center gap-1.5">
+              <i data-lucide="wallet" class="w-4 h-4"></i> Tiền lãi có thể rút bỏ ví hôm nay
+            </span>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">${formatDateDisplay(todayStr)}</span>
+          </div>
+          <div>
+            <p class="text-3xl font-black">${formatMoney(todayWithdrawableProfit)}</p>
+            <p class="text-[11px] text-emerald-100 mt-0.5">Tiền lời thu về từ các mặt hàng đã hoàn $100\%$ vốn gốc nhập</p>
+          </div>
+          <div class="bg-white/95 text-slate-800 rounded-xl p-3 space-y-1.5 mt-2">
+            ${todayProfitDetails.length > 0 ? todayProfitDetails.join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu sản phẩm</p>'}
+          </div>
         </div>
 
+        <!-- TỔNG QUAN TÀI CHÍNH -->
         <div class="grid grid-cols-1 gap-3 mb-4">
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
             <div>
-              <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng (Gốc thu về / Vốn bỏ ra)</p>
-              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
-              <p class="text-[11px] text-slate-500 mt-0.5">Vốn bán ra: <b>${formatMoney(totalCost)}</b> / Tổng vốn nhập: <b>${formatMoney(totalImportBudget)}</b></p>
+              <p class="text-xs text-slate-400 font-medium">1. Tổng Vốn Đã Chi Nhập Hàng</p>
+              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalImportBudget)}</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">Tổng số tiền gốc bỏ ra mua hàng từ trước tới nay</p>
+            </div>
+            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center">
+              <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">2. Tổng Tiền Đã Thu Về (Doanh Thu)</p>
+              <p class="text-xl font-extrabold text-ios-blue mt-0.5">${formatMoney(totalRevenue)}</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">Tổng tiền mặt nhận về từ tất cả các đơn bán</p>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
-              <i data-lucide="trending-up" class="w-5 h-5"></i>
-            </div>
-          </div>
-
-          <div onclick="toggleProfitChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <p class="text-xs text-slate-500 font-bold">Lợi Nhuận Kinh Doanh</p>
-                <span class="text-[10px] text-ios-green font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">+${avgProfitMargin}% giá bán</span>
-              </div>
-              <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
-              <p class="text-[10px] text-ios-blue flex items-center gap-0.5 mt-1 font-medium">
-                ${showProfitChart ? 'Bấm để ẩn biểu đồ' : 'Bấm xem biểu đồ Doanh thu & Lợi nhuận'}
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-10 h-10 ${totalProfit >= 0 ? 'bg-emerald-50 text-ios-green' : 'bg-red-50 text-red-500'} rounded-full flex items-center justify-center">
-                <i data-lucide="piggy-bank" class="w-5 h-5"></i>
-              </div>
-              <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${showProfitChart ? 'rotate-180' : ''}"></i>
-            </div>
-          </div>
-
-          <div onclick="toggleGiveawayChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <p class="text-xs text-slate-500 font-bold">Tổng Vốn Biếu Tặng</p>
-                <span class="text-[10px] text-ios-pink font-bold bg-pink-50 px-1.5 py-0.5 rounded-full">Chiếm ${giveawayVsProfitPercent}% Lãi</span>
-              </div>
-              <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
-            </div>
-            <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
-              <i data-lucide="gift" class="w-5 h-5"></i>
-            </div>
-          </div>
-
-          <div onclick="toggleDamagedChart()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all select-none">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <p class="text-xs text-slate-500 font-bold">Tổng Vốn Hư Hỏng / Thất Thoát</p>
-                <span class="text-[10px] text-ios-orange font-bold bg-orange-50 px-1.5 py-0.5 rounded-full">Chiếm ${damagedVsProfitPercent}% Lãi</span>
-              </div>
-              <p class="text-xl font-extrabold text-ios-orange mt-0.5">${formatMoney(totalDamagedValue)}</p>
-            </div>
-            <div class="w-10 h-10 bg-orange-50 text-ios-orange rounded-full flex items-center justify-center">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+              <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
             </div>
           </div>
         </div>
-      `;
 
-      if (showProfitChart) {
-        html += `
-          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
-            <h2 class="text-xs font-bold text-slate-700 flex items-center justify-between border-b border-slate-100 pb-2">
-              <span class="flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng</span>
-            </div>
-        `;
-        if (sortedMonths.length === 0) {
-          html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu giao dịch</p>`;
-        } else {
-          let maxRev = 1; sortedMonths.forEach(m => { if (monthlyMap[m].revenue > maxRev) maxRev = monthlyMap[m].revenue; });
-          html += `<div class="space-y-3 pt-1">`;
-          sortedMonths.forEach(m => {
-            const data = monthlyMap[m];
-            const parts = m.split('-');
-            const revPercent = Math.round((data.revenue / maxRev) * 100);
-            const monthMargin = data.revenue > 0 ? ((data.profit / data.revenue) * 100).toFixed(1) : 0;
-
-            html += `
-              <div class="bg-slate-50 p-3 rounded-xl space-y-2">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="font-bold text-slate-800">Tháng ${parts[1]}/${parts[0]}</span>
-                  <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)} (<b class="text-ios-blue">+${monthMargin}% giá bán</b>)</span>
-                </div>
-                <div class="space-y-1.5">
-                  <div>
-                    <div class="flex justify-between text-[10px] text-slate-500 mb-0.5"><span>Doanh thu:</span><span class="font-bold text-slate-700">${formatMoney(data.revenue)}</span></div>
-                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-ios-blue h-full rounded-full" style="width: ${revPercent}%"></div></div>
-                  </div>
-                </div>
-              </div>
-            `;
-          });
-          html += `</div>`;
-        }
-        html += `</div>`;
-      }
-
-      // Chi tiết kinh doanh từng mặt hàng
-      html += `
+        <!-- TRẠNG THÁI TỪNG MẶT HÀNG -->
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Trạng thái thu hồi vốn & Lãi từng mặt hàng</h2>
       `;
 
       if (db.products.length === 0) {
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
       } else {
         db.products.forEach(p => {
-          const itemSales = filteredSales.filter(s => s.productId === p.id);
+          const itemSales = validSales.filter(s => s.productId === p.id);
           const soldQty = itemSales.reduce((sum, s) => sum + s.qty, 0);
           const itemRevenue = itemSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
           const itemCost = itemSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
           const itemProfit = itemSales.reduce((sum, s) => sum + (s.profit || 0), 0);
-          const itemMargin = itemRevenue > 0 ? ((itemProfit / itemRevenue) * 100).toFixed(1) : 0;
 
-          // Tỷ lệ Vốn bán trên Tổng vốn nhập của sản phẩm
-          const costImportRatio = p.totalImportCost > 0 ? ((itemCost / p.totalImportCost) * 100).toFixed(1) : 0;
-          // Thanh doanh thu bằng lãi (tỷ trọng lợi nhuận so với doanh thu hoặc tiến độ)
-          const profitBarWidth = itemRevenue > 0 ? Math.min(Math.round((itemProfit / itemRevenue) * 100), 100) : 0;
-
-          const itemGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
-          const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
-          const giveawayVal = itemGiveaways.reduce((sum, g) => sum + (g.costValue || 0), 0);
-
-          const itemDamaged = filteredDamaged.filter(d => d.productId === p.id);
-          const damagedQty = itemDamaged.reduce((sum, d) => sum + d.qty, 0);
-          const damagedVal = itemDamaged.reduce((sum, d) => sum + (d.costValue || 0), 0);
+          const importCost = p.totalImportCost || 0;
+          const isBreakEven = itemRevenue >= importCost && importCost > 0;
+          const breakEvenPercent = importCost > 0 ? Math.min(Math.round((itemRevenue / importCost) * 100), 100) : 0;
+          const remainingCost = Math.max(importCost - itemRevenue, 0);
 
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span class="font-bold text-slate-900 text-base">${p.name}</span>
-                <span class="text-xs font-bold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} bg-emerald-50 px-2.5 py-1 rounded-full">
-                  Lãi: ${formatMoney(itemProfit)} (+${itemMargin}% giá bán)
-                </span>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
-                <div class="space-y-0.5">
-                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b> (${formatMoney(p.totalImportCost)})</p>
-                  <p>Đã Bán: <b class="text-slate-700">${formatNum(soldQty)} ${p.unit}</b></p>
-                  <p>Biếu Tặng: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
-                  <p>Hư Hỏng: <b class="text-ios-orange">${formatNum(damagedQty)} ${p.unit}</b></p>
-                  <p>Tồn Kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
+                <div>
+                  <span class="font-bold text-slate-900 text-base">${p.name}</span>
+                  <span class="text-xs text-slate-400 block">Tồn kho: <b>${formatNum(p.currentStock)} ${p.unit}</b></span>
                 </div>
-                <div class="text-right space-y-0.5">
-                  <p>Doanh thu bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
-                  <p>Vốn bán / Tổng vốn: <b class="text-slate-800">${formatMoney(itemCost)} / ${formatMoney(p.totalImportCost)}</b> <span class="text-[10px] text-ios-blue">(${costImportRatio}%)</span></p>
-                  <p>Vốn biếu: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
-                  <p>Vốn hỏng: <b class="text-ios-orange">${formatMoney(damagedVal)}</b></p>
+                ${isBreakEven ? `
+                  <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    🟢 ĐÃ HÒA VỐN (100%)
+                  </span>
+                ` : `
+                  <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    🟡 Đang thu vốn (${breakEvenPercent}%)
+                  </span>
+                `}
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+                <div>
+                  <p>Vốn nhập: <b class="text-slate-800">${formatMoney(importCost)}</b></p>
+                  <p>Tiền đã thu về: <b class="text-ios-blue">${formatMoney(itemRevenue)}</b></p>
+                </div>
+                <div class="text-right">
+                  ${isBreakEven ? `
+                    <p class="text-emerald-600 font-bold">Lãi đã bán: +${formatMoney(itemProfit)}</p>
+                    <p class="text-[10px] text-emerald-600">Tồn kho còn lại = LÃI THUẦN</p>
+                  ` : `
+                    <p class="text-amber-700 font-bold">Còn thiếu để hòa gốc:</p>
+                    <p class="text-slate-900 font-black">${formatMoney(remainingCost)}</p>
+                  `}
                 </div>
               </div>
-              <!-- Thanh Doanh thu / Lợi nhuận trực quan -->
-              <div class="space-y-1 pt-1">
+
+              <!-- Thanh tiến trình thu hồi vốn -->
+              <div class="space-y-1">
                 <div class="flex justify-between text-[11px] text-slate-500">
-                  <span>Tỷ trọng lãi trên doanh thu:</span>
-                  <span class="font-bold text-ios-green">${itemMargin}%</span>
+                  <span>Tiến độ thu hồi tiền gốc:</span>
+                  <span class="font-bold text-slate-700">${breakEvenPercent}%</span>
                 </div>
-                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div class="bg-ios-green h-full rounded-full transition-all duration-500" style="width: ${profitBarWidth}%"></div>
+                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                  <div class="${isBreakEven ? 'bg-emerald-500' : 'bg-amber-500'} h-full rounded-full transition-all duration-500" style="width: ${breakEvenPercent}%"></div>
                 </div>
               </div>
             </div>
