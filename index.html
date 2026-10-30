@@ -134,23 +134,6 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
-          
-          // Rebuild batches from imports if missing or out of sync
-          if (db.products) {
-            db.products.forEach(p => {
-              let matchedImports = db.imports.filter(i => i.productId === p.id);
-              if (matchedImports.length > 0 && (!p.batches || p.batches.length === 0)) {
-                p.batches = matchedImports.map(imp => ({
-                  batchId: imp.id,
-                  date: imp.date,
-                  qty: imp.qty,
-                  originalQty: imp.qty,
-                  cost: imp.totalCost,
-                  recoveredRevenue: 0
-                }));
-              }
-            });
-          }
         } catch(e) { console.error(e); }
       }
       googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
@@ -272,13 +255,13 @@
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
-            <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập thêm sản phẩm
+            <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập sản phẩm mới
           </h2>
           <form onsubmit="handleAddProduct(event)" class="space-y-3">
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
-                <input type="text" id="p-name" required placeholder="Khoai mật, Củ cải..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm (Đợt nhập)</label>
+                <input type="text" id="p-name" required placeholder="Bắp cải (Đợt 1)..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
@@ -310,7 +293,7 @@
               </div>
             </div>
             <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
-              Lưu / Cộng Dồn Sản Phẩm
+              Lưu Sản Phẩm Mới
             </button>
           </form>
         </div>
@@ -323,12 +306,11 @@
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
         db.products.forEach(p => {
-          const batchCount = p.batches ? p.batches.length : 1;
           html += `
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex justify-between items-center text-xs">
               <div>
                 <span class="font-bold text-slate-900 text-sm">${p.name}</span>
-                <p class="text-slate-500 mt-0.5">Số lô nhập: <b class="text-slate-700">${batchCount} đợt</b> | Tồn: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
+                <p class="text-slate-500 mt-0.5">Tồn kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b> | Vốn: <b class="text-slate-700">${formatMoney(p.totalCost)}</b></p>
               </div>
               <div class="text-right flex items-center gap-2">
                 <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
@@ -384,7 +366,7 @@
                         </div>
                         <div class="text-right flex items-center gap-2.5">
                           <p class="text-xs font-bold text-slate-900">${formatMoney(imp.totalCost)}</p>
-                          <button onclick="deleteImport('${imp.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                          <button onclick="deleteProduct('${imp.productId}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                         </div>
                       </div>
                     `;
@@ -418,40 +400,22 @@
 
       if (importQty <= 0) { alert("Số lượng nhập phải lớn hơn 0!"); return; }
 
-      let prod = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
-      let productId = '';
-      const batchId = 'BATCH_' + Date.now();
-
-      if (!prod) {
-        productId = 'P_' + Date.now();
-        prod = {
-          id: productId,
-          name,
-          unit,
-          currentStock: 0,
-          batches: []
-        };
-        db.products.push(prod);
-      } else {
-        productId = prod.id;
-        prod.unit = unit;
-        if (!prod.batches) prod.batches = [];
-      }
-
-      prod.batches.push({
-        batchId,
+      const productId = 'P_' + Date.now();
+      const newProduct = {
+        id: productId,
+        name,
+        unit,
+        currentStock: importQty,
+        totalCost: totalImportCost,
         date,
-        qty: importQty,
-        originalQty: importQty,
-        cost: totalImportCost,
         recoveredRevenue: 0
-      });
+      };
 
-      prod.currentStock = (prod.currentStock || 0) + importQty;
+      db.products.push(newProduct);
 
       if (!db.imports) db.imports = [];
       db.imports.push({
-        id: batchId,
+        id: 'IMP_' + Date.now(),
         date,
         productId,
         productName: name,
@@ -466,33 +430,11 @@
       lucide.createIcons();
     }
 
-    function deleteImport(importId) {
-      if (confirm("Bạn có chắc muốn xóa đợt nhập hàng này? Số lượng tồn kho và tổng vốn sẽ tự động trừ đi.")) {
-        const imp = (db.imports || []).find(i => i.id === importId);
-        if (imp) {
-          const prod = db.products.find(p => p.id === imp.productId);
-          if (prod) {
-            prod.currentStock -= imp.qty;
-            if (prod.batches) {
-              prod.batches = prod.batches.filter(b => b.batchId !== importId);
-            }
-            if (prod.currentStock <= 0 && (!prod.batches || prod.batches.length === 0)) {
-              db.products = db.products.filter(p => p.id !== prod.id);
-            }
-          }
-          db.imports = db.imports.filter(i => i.id !== importId);
-          saveDB();
-          renderProducts();
-          lucide.createIcons();
-        }
-      }
-    }
-
     function deleteProduct(id) {
-      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử liên quan. Bạn có chắc chắn?")) {
+      if (confirm("Xóa sản phẩm này sẽ xóa hoàn toàn khỏi kho và báo cáo. Bạn có chắc chắn?")) {
         db.products = db.products.filter(p => p.id !== id);
         db.imports = (db.imports || []).filter(i => i.productId !== id);
-        db.sales = db.sales.filter(s => s.productId !== id);
+        db.sales = (db.sales || []).filter(s => s.productId !== id);
         if (db.giveaways) db.giveaways = db.giveaways.filter(g => g.productId !== id);
         if (db.damaged) db.damaged = db.damaged.filter(d => d.productId !== id);
         saveDB();
@@ -558,7 +500,7 @@
           <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử bán hàng theo ngày</h2>
       `;
 
-      const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
+      const validSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId));
       if (validSales.length === 0) {
         html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có giao dịch bán nào</p></div>`;
       } else {
@@ -634,10 +576,8 @@
     function onSelectSaleProduct() {
       const pId = document.getElementById('s-product-id').value;
       const prod = db.products.find(p => p.id === pId);
-      if (prod && prod.batches && prod.batches.length > 0) {
-        const totalCost = prod.batches.reduce((sum, b) => sum + b.cost, 0);
-        const totalQty = prod.batches.reduce((sum, b) => sum + b.qty, 0);
-        let avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+      if (prod && prod.totalCost > 0 && prod.currentStock > 0) {
+        let avgCost = prod.totalCost / prod.currentStock;
         const qty = parseFloat(document.getElementById('s-qty').value) || 0;
         if (qty > 0) document.getElementById('s-total-revenue').value = Math.round(qty * avgCost * 1.5);
         calcSalePreview();
@@ -652,10 +592,8 @@
       let unitPrice = qty > 0 ? totalRevenue / qty : 0;
 
       let estimatedCost = 0;
-      if (prod && prod.batches) {
-        const totalC = prod.batches.reduce((sum, x) => sum + x.cost, 0);
-        const totalQ = prod.batches.reduce((sum, x) => sum + x.qty, 0);
-        let avgC = totalQ > 0 ? totalC / totalQ : 0;
+      if (prod && prod.currentStock > 0) {
+        let avgC = prod.totalCost / (prod.originalStock || prod.currentStock);
         estimatedCost = qty * avgC;
       }
 
@@ -676,34 +614,20 @@
       if (qty <= 0) { alert("Số lượng bán phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Tiếp tục?`)) return;
 
-      let remainingQtyToSell = qty;
-      let revenuePerUnit = totalRevenue / qty;
-      let totalCostCalculated = 0;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      let totalCostCalculated = qty * unitCost;
 
-      if (prod.batches) {
-        for (let batch of prod.batches) {
-          if (batch.qty > 0 && remainingQtyToSell > 0) {
-            let qtyFromBatch = Math.min(batch.qty, remainingQtyToSell);
-            if (!batch.originalQty) batch.originalQty = batch.qty;
-
-            let costOfThisPart = batch.cost > 0 ? qtyFromBatch * (batch.cost / (batch.originalQty || batch.qty)) : 0;
-            totalCostCalculated += costOfThisPart;
-
-            batch.qty -= qtyFromBatch;
-            batch.recoveredRevenue = (batch.recoveredRevenue || 0) + (qtyFromBatch * revenuePerUnit);
-
-            remainingQtyToSell -= qtyFromBatch;
-          }
-        }
-      }
+      prod.currentStock -= qty;
+      prod.recoveredRevenue = (prod.recoveredRevenue || 0) + totalRevenue;
 
       const profit = totalRevenue - totalCostCalculated;
       const actualUnitPrice = totalRevenue / qty;
       const marginPercent = totalRevenue > 0 ? ((profit / totalRevenue) * 100).toFixed(1) : 0;
 
-      prod.currentStock -= qty;
       openDailySalesMap[date] = true;
 
+      if (!db.sales) db.sales = [];
       db.sales.push({
         id: 'S_' + Date.now(),
         date,
@@ -723,15 +647,12 @@
 
     function deleteSale(saleId) {
       if (confirm("Bạn muốn xóa đơn bán này?")) {
-        const sale = db.sales.find(s => s.id === saleId);
+        const sale = (db.sales || []).find(s => s.id === saleId);
         if (sale) {
           const prod = db.products.find(p => p.id === sale.productId);
           if (prod) {
             prod.currentStock += sale.qty;
-            if (prod.batches && prod.batches.length > 0) {
-              prod.batches[prod.batches.length - 1].qty += sale.qty;
-              prod.batches[prod.batches.length - 1].recoveredRevenue -= sale.totalRevenue;
-            }
+            prod.recoveredRevenue = Math.max(0, (prod.recoveredRevenue || 0) - sale.totalRevenue);
           }
           db.sales = db.sales.filter(s => s.id !== saleId);
           saveDB();
@@ -816,10 +737,9 @@
       if (qty <= 0) { alert("Số lượng biếu phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
 
-      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
-      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
-      let avgC = totalQ > 0 ? totalC / totalQ : 0;
-      const costValue = qty * avgC;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      const costValue = qty * unitCost;
 
       prod.currentStock -= qty;
       if (!db.giveaways) db.giveaways = [];
@@ -831,7 +751,7 @@
 
     function deleteGiveaway(giveawayId) {
       if (confirm("Bạn muốn xóa lượt biếu này?")) {
-        const giveaway = db.giveaways.find(g => g.id === giveawayId);
+        const giveaway = (db.giveaways || []).find(g => g.id === giveawayId);
         if (giveaway) {
           const prod = db.products.find(p => p.id === giveaway.productId);
           if (prod) prod.currentStock += giveaway.qty;
@@ -918,10 +838,9 @@
       if (qty <= 0) { alert("Số lượng hư hỏng phải lớn hơn 0!"); return; }
       if (qty > prod.currentStock && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
 
-      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
-      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
-      let avgC = totalQ > 0 ? totalC / totalQ : 0;
-      const costValue = qty * avgC;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      const costValue = qty * unitCost;
 
       prod.currentStock -= qty;
       if (!db.damaged) db.damaged = [];
@@ -933,7 +852,7 @@
 
     function deleteDamaged(damagedId) {
       if (confirm("Bạn muốn xóa ghi nhận hư hỏng này?")) {
-        const damagedItem = db.damaged.find(d => d.id === damagedId);
+        const damagedItem = (db.damaged || []).find(d => d.id === damagedId);
         if (damagedItem) {
           const prod = db.products.find(p => p.id === damagedItem.productId);
           if (prod) prod.currentStock += damagedItem.qty;
@@ -945,7 +864,7 @@
       }
     }
 
-    // 5. REPORTS TAB
+    // 5. REPORTS TAB (Sửa lỗi đồng bộ số liệu tổng hợp và chi tiết)
     function renderReports() {
       const container = document.getElementById('app-content');
       
@@ -959,8 +878,9 @@
         selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
       }
 
-      const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
+      // Lọc các giao dịch nhập và bán theo tháng được chọn
       const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
+      const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
 
       let totalRevenue = 0;
       filteredSales.forEach(s => { totalRevenue += (s.totalRevenue || 0); });
@@ -971,22 +891,28 @@
       let totalWithdrawableProfit = 0;
       let profitDetails = [];
 
+      // Lấy danh sách các sản phẩm thuộc tháng được chọn để tính tổng hợp chuẩn xác
+      const productIdsInMonth = new Set();
+      filteredImports.forEach(i => productIdsInMonth.add(i.productId));
+      filteredSales.forEach(s => productIdsInMonth.add(s.productId));
+
       if (db.products) {
         db.products.forEach(p => {
-          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
-          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
+          // Chỉ xét các sản phẩm có phát sinh trong tháng được chọn
+          if (!productIdsInMonth.has(p.id)) return;
+
+          let totalCostP = p.totalCost || 0;
+          let totalRecoveredP = p.recoveredRevenue || 0;
           let stock = p.currentStock || 0;
 
           if (totalCostP === 0 && totalRecoveredP > 0) {
             let itemProfit = totalRecoveredP;
             totalWithdrawableProfit += itemProfit;
-            let sign = itemProfit >= 0 ? '+' : '';
-            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: +${formatMoney(itemProfit)}` });
           } else if (totalRecoveredP >= totalCostP && totalCostP > 0) {
             let itemProfit = totalRecoveredP - totalCostP;
             totalWithdrawableProfit += itemProfit;
-            let sign = itemProfit >= 0 ? '+' : '';
-            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: +${formatMoney(itemProfit)}` });
           } else if (stock === 0) {
             let itemLoss = totalCostP - totalRecoveredP;
             totalWithdrawableProfit -= itemLoss;
@@ -1063,8 +989,10 @@
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
       } else {
         db.products.forEach(p => {
-          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
-          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
+          if (!productIdsInMonth.has(p.id)) return;
+
+          let totalCostP = p.totalCost || 0;
+          let totalRecoveredP = p.recoveredRevenue || 0;
           let stock = p.currentStock || 0;
 
           let badgeClass = '';
