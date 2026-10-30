@@ -134,15 +134,20 @@
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
           
-          // Đảm bảo dữ liệu cũ tương thích với cấu trúc lô (batches)
+          // Tự động quét và quy đổi dữ liệu cũ sang cấu trúc lô (batches)
           if (db.products) {
             db.products.forEach(p => {
               if (!p.batches || p.batches.length === 0) {
+                let costVal = p.totalImportCost || 0;
+                let qtyVal = p.importQty || p.currentStock || 0;
+                if (costVal === 0 && p.avgImportCost && p.currentStock) {
+                  costVal = p.currentStock * p.avgImportCost;
+                }
                 p.batches = [{
                   batchId: 'B_' + Date.now(),
                   date: getTodayString(),
-                  qty: p.importQty || p.currentStock || 0,
-                  cost: p.totalImportCost || ((p.currentStock || 0) * (p.avgImportCost || 0)) || 0,
+                  qty: qtyVal > 0 ? qtyVal : (p.currentStock || 0),
+                  cost: costVal,
                   recoveredRevenue: 0
                 }];
               }
@@ -940,7 +945,7 @@
       }
     }
 
-    // 5. REPORTS TAB (SỬA HOÀN TOÀN LỖI HIỂN THỊ)
+    // 5. REPORTS TAB
     function renderReports() {
       const container = document.getElementById('app-content');
       const todayStr = getTodayString();
