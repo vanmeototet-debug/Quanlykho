@@ -49,12 +49,10 @@
     <div class="px-4 py-3 flex items-center justify-between">
       <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
       <div class="flex items-center gap-1">
-        <!-- Nút Cài đặt Google Sheet URL -->
         <button onclick="toggleSheetModal(true)" class="p-2 text-ios-green hover:bg-slate-100 rounded-full transition-colors relative" title="Kết nối Google Sheets">
           <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
           <span id="sheet-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-slate-300 rounded-full"></span>
         </button>
-        <!-- Nút Xuất dự phòng -->
         <button onclick="exportData()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors" title="Xuất file JSON dự phòng">
           <i data-lucide="download" class="w-4 h-4"></i>
         </button>
@@ -92,9 +90,7 @@
   </div>
 
   <!-- Main Content Area -->
-  <main class="flex-1 overflow-y-auto p-4 pb-24" id="app-content">
-    <!-- Dynamic Content injected by JS -->
-  </main>
+  <main class="flex-1 overflow-y-auto p-4 pb-24" id="app-content"></main>
 
   <!-- Bottom Navigation Bar -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 pb-safe">
@@ -124,21 +120,14 @@
 
   <!-- JS Logic -->
   <script>
-    let db = {
-      products: [], 
-      imports: [], // Lịch sử nhập hàng chi tiết
-      sales: [],
-      giveaways: [],
-      damaged: []
-    };
-
+    let db = { products: [], imports: [], sales: [], giveaways: [], damaged: [] };
     let googleSheetUrl = '';
     let selectedReportMonth = 'ALL';
     let showProfitChart = true;
     let showGiveawayChart = true;
     let showDamagedChart = true;
-    let openDailySalesMap = {}; // Trạng thái mở/đóng lịch sử bán hàng theo ngày
-    let openDailyImportsMap = {}; // Trạng thái mở/đóng lịch sử nhập hàng theo ngày
+    let openDailySalesMap = {};
+    let openDailyImportsMap = {};
 
     function loadDB() {
       const stored = localStorage.getItem('app_inventory_db');
@@ -148,9 +137,7 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
-        } catch(e) {
-          console.error("Lỗi đọc dữ liệu local", e);
-        }
+        } catch(e) { console.error(e); }
       }
       googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
       if (googleSheetUrl) {
@@ -175,13 +162,11 @@
         form.action = googleSheetUrl;
         form.target = 'hidden-iframe';
         form.style.display = 'none';
-        
         let input = document.createElement('input');
         input.type = 'hidden';
         input.name = 'payload';
         input.id = 'hidden-sync-payload';
         form.appendChild(input);
-        
         let iframe = document.createElement('iframe');
         iframe.name = 'hidden-iframe';
         iframe.style.display = 'none';
@@ -197,7 +182,6 @@
       const scriptId = 'jsonp-script';
       let oldScript = document.getElementById(scriptId);
       if (oldScript) oldScript.remove();
-
       window.handleSheetData = function(data) {
         if (data && data.products) {
           db = data;
@@ -208,7 +192,6 @@
           switchTab(currentTab);
         }
       };
-
       const script = document.createElement('script');
       script.id = scriptId;
       script.src = googleSheetUrl + (googleSheetUrl.includes('?') ? '&' : '?') + 'callback=handleSheetData&t=' + Date.now();
@@ -217,10 +200,7 @@
 
     function saveSheetUrl() {
       const url = document.getElementById('sheet-url-input').value.trim();
-      if (!url) {
-        alert("Vui lòng nhập đường link Web App URL!");
-        return;
-      }
+      if (!url) { alert("Vui lòng nhập đường link Web App URL!"); return; }
       googleSheetUrl = url;
       localStorage.setItem('app_google_sheet_url', googleSheetUrl);
       document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
@@ -232,73 +212,39 @@
     function formatMoney(num) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
     }
-
-    function formatNum(num) {
-      return new Intl.NumberFormat('vi-VN').format(num || 0);
-    }
-
+    function formatNum(num) { return new Intl.NumberFormat('vi-VN').format(num || 0); }
     function getTodayString() {
       const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     }
-
     function formatDateDisplay(dateStr) {
       if (!dateStr) return '';
       const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        return `Ngày ${parts[2]}/${parts[1]}/${parts[0]}`;
-      }
-      return dateStr;
+      return parts.length === 3 ? `Ngày ${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
     }
-
     function toggleSheetModal(show) {
       const modal = document.getElementById('sheet-modal');
-      if (show) modal.classList.remove('hidden');
-      else modal.classList.add('hidden');
+      if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
       lucide.createIcons();
     }
 
     let currentTab = 'products';
-
     function switchTab(tab) {
       currentTab = tab;
-      
       ['products', 'sales', 'giveaways', 'damaged', 'reports'].forEach(t => {
         const btn = document.getElementById(`nav-${t}`);
-        if (t === tab) {
-          btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue';
-        } else {
-          btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
-        }
+        btn.className = t === tab ? 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue' : 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
       });
-
       const titleEl = document.getElementById('page-title');
-      if (tab === 'products') {
-        titleEl.innerText = 'Sản phẩm & Tồn kho';
-        renderProducts();
-      } else if (tab === 'sales') {
-        titleEl.innerText = 'Nhật ký Bán hàng';
-        renderSales();
-      } else if (tab === 'giveaways') {
-        titleEl.innerText = 'Quản lý Biếu tặng';
-        renderGiveaways();
-      } else if (tab === 'damaged') {
-        titleEl.innerText = 'Quản lý Hư hỏng';
-        renderDamaged();
-      } else if (tab === 'reports') {
-        titleEl.innerText = 'Báo cáo & Phân tích';
-        renderReports();
-      }
-
+      if (tab === 'products') { titleEl.innerText = 'Sản phẩm & Tồn kho'; renderProducts(); }
+      else if (tab === 'sales') { titleEl.innerText = 'Nhật ký Bán hàng'; renderSales(); }
+      else if (tab === 'giveaways') { titleEl.innerText = 'Quản lý Biếu tặng'; renderGiveaways(); }
+      else if (tab === 'damaged') { titleEl.innerText = 'Quản lý Hư hỏng'; renderDamaged(); }
+      else if (tab === 'reports') { titleEl.innerText = 'Báo cáo & Phân tích'; renderReports(); }
       lucide.createIcons();
     }
 
-    // ==========================================
-    // 1. PRODUCTS TAB (SẢN PHẨM & TỒN KHO)
-    // ==========================================
+    // 1. PRODUCTS TAB
     function toggleDailyImportsGroup(dateKey) {
       openDailyImportsMap[dateKey] = !openDailyImportsMap[dateKey];
       renderProducts();
@@ -307,7 +253,6 @@
 
     function renderProducts() {
       const container = document.getElementById('app-content');
-      
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
@@ -324,7 +269,6 @@
                 <input type="text" id="p-unit" required placeholder="kg, quả, túi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày nhập</label>
@@ -335,12 +279,10 @@
                 <input type="number" step="any" id="p-qty" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-
             <div>
               <label class="block text-xs text-slate-500 mb-1">Tổng giá nhập đợt này (VND)</label>
               <input type="number" id="p-total-cost" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
-
             <div class="bg-blue-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-blue-100 text-xs">
               <div>
                 <span class="text-slate-500 block">Giá nhập TB / ĐVT:</span>
@@ -351,25 +293,18 @@
                 <span id="p-min-price-preview" class="font-bold text-ios-green">0 đ</span>
               </div>
             </div>
-
             <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
               Lưu / Cộng Dồn Sản Phẩm
             </button>
           </form>
         </div>
-
-        <!-- Tồn kho hiện tại của các sản phẩm -->
         <div class="space-y-3 mb-6">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại (${db.products.length} sản phẩm)</h2>
           <div class="grid grid-cols-1 gap-2">
       `;
 
       if (db.products.length === 0) {
-        html += `
-          <div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <p class="text-xs">Chưa có sản phẩm nào trong kho</p>
-          </div>
-        `;
+        html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
         db.products.forEach(p => {
           html += `
@@ -390,69 +325,40 @@
           `;
         });
       }
-      html += `</div></div>`;
-
-      // Nhật ký nhập hàng theo ngày (có mũi tên thu gọn/mở rộng)
-      html += `
-        <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Nhật ký nhập hàng theo ngày</h2>
-      `;
+      html += `</div></div><div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Nhật ký nhập hàng theo ngày</h2>`;
 
       const validImports = db.imports || [];
       if (validImports.length === 0) {
-        html += `
-          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="package-plus" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm">Chưa có lịch sử nhập hàng</p>
-          </div>
-        `;
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="package-plus" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có lịch sử nhập hàng</p></div>`;
       } else {
         let dailyImportMap = {};
         validImports.forEach(imp => {
           const dateKey = imp.date || 'Chưa rõ ngày';
-          if (!dailyImportMap[dateKey]) {
-            dailyImportMap[dateKey] = {
-              totalMoney: 0,
-              items: []
-            };
-          }
+          if (!dailyImportMap[dateKey]) dailyImportMap[dateKey] = { totalMoney: 0, items: [] };
           dailyImportMap[dateKey].totalMoney += (imp.totalCost || 0);
           dailyImportMap[dateKey].items.push(imp);
         });
-
         const sortedImportDates = Object.keys(dailyImportMap).sort().reverse();
         if (sortedImportDates.length > 0 && openDailyImportsMap[sortedImportDates[0]] === undefined) {
           openDailyImportsMap[sortedImportDates[0]] = true;
         }
-
         sortedImportDates.forEach(dateKey => {
           const group = dailyImportMap[dateKey];
           const isOpen = !!openDailyImportsMap[dateKey];
-
           html += `
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
-              <!-- Header Nhập Ngày (Bấm vào để xổ ra / thu gọn) -->
               <div onclick="toggleDailyImportsGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
                 <div>
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                      <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}
-                    </span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
-                      ${group.items.length} mặt hàng
-                    </span>
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${group.items.length} mặt hàng</span>
                   </div>
-                  <p class="text-xs text-slate-500 mt-1">
-                    Tổng tiền ngày nhập: <b class="text-slate-900 font-bold">${formatMoney(group.totalMoney)}</b>
-                  </p>
+                  <p class="text-xs text-slate-500 mt-1">Tổng tiền ngày nhập: <b class="text-slate-900 font-bold">${formatMoney(group.totalMoney)}</b></p>
                 </div>
-
                 <div class="flex items-center gap-2">
                   <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
                 </div>
               </div>
-
-              <!-- Chi tiết các mặt hàng nhập trong ngày -->
               ${isOpen ? `
                 <div class="p-3 space-y-2 bg-white">
                   ${group.items.map(imp => {
@@ -461,17 +367,11 @@
                       <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
                         <div>
                           <span class="font-bold text-slate-800 text-xs">${imp.productName || (prod ? prod.name : 'Sản phẩm')}</span>
-                          <p class="text-[11px] text-slate-500 mt-0.5">
-                            Số lượng nhập: <b class="text-slate-700">${formatNum(imp.qty)} ${imp.unit || (prod ? prod.unit : '')}</b> (${formatMoney(imp.avgCost)} / ${imp.unit || (prod ? prod.unit : '')})
-                          </p>
+                          <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(imp.qty)} ${imp.unit || (prod ? prod.unit : '')}</b> (${formatMoney(imp.avgCost)})</p>
                         </div>
                         <div class="text-right flex items-center gap-2.5">
-                          <div>
-                            <p class="text-xs font-bold text-slate-900">${formatMoney(imp.totalCost)}</p>
-                          </div>
-                          <button onclick="deleteImport('${imp.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đợt nhập này">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                          </button>
+                          <p class="text-xs font-bold text-slate-900">${formatMoney(imp.totalCost)}</p>
+                          <button onclick="deleteImport('${imp.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                         </div>
                       </div>
                     `;
@@ -482,7 +382,6 @@
           `;
         });
       }
-
       html += `</div>`;
       container.innerHTML = html;
     }
@@ -490,15 +389,8 @@
     function calcProductPrices() {
       const qty = parseFloat(document.getElementById('p-qty').value) || 0;
       const totalCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
-
-      let avgCost = 0;
-      let minSuggest = 0;
-
-      if (qty > 0 && totalCost > 0) {
-        avgCost = totalCost / qty;
-        minSuggest = avgCost * 1.5;
-      }
-
+      let avgCost = qty > 0 && totalCost > 0 ? totalCost / qty : 0;
+      let minSuggest = avgCost * 1.5;
       document.getElementById('p-avg-cost-preview').innerText = formatMoney(avgCost);
       document.getElementById('p-min-price-preview').innerText = formatMoney(minSuggest);
     }
@@ -511,14 +403,10 @@
       const importQty = parseFloat(document.getElementById('p-qty').value) || 0;
       const totalImportCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
 
-      if (importQty <= 0) {
-        alert("Số lượng nhập phải lớn hơn 0!");
-        return;
-      }
+      if (importQty <= 0) { alert("Số lượng nhập phải lớn hơn 0!"); return; }
 
       let existingProd = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
       let productId = '';
-
       if (existingProd) {
         productId = existingProd.id;
         existingProd.importQty += importQty;
@@ -530,36 +418,18 @@
       } else {
         productId = 'P_' + Date.now();
         const avgImportCost = totalImportCost / importQty;
-        const minSuggestPrice = avgImportCost * 1.5;
-
-        const newProd = {
-          id: productId,
-          name,
-          unit,
-          importQty,
-          totalImportCost,
-          avgImportCost,
-          minSuggestPrice,
-          currentStock: importQty
-        };
-
-        db.products.push(newProd);
+        db.products.push({
+          id: productId, name, unit, importQty, totalImportCost,
+          avgImportCost, minSuggestPrice: avgImportCost * 1.5, currentStock: importQty
+        });
       }
 
       if (!db.imports) db.imports = [];
       db.imports.push({
-        id: 'IMP_' + Date.now(),
-        date,
-        productId,
-        productName: name,
-        unit,
-        qty: importQty,
-        totalCost: totalImportCost,
-        avgCost: totalImportCost / importQty
+        id: 'IMP_' + Date.now(), date, productId, productName: name, unit,
+        qty: importQty, totalCost: totalImportCost, avgCost: totalImportCost / importQty
       });
-
       openDailyImportsMap[date] = true;
-
       saveDB();
       renderProducts();
       lucide.createIcons();
@@ -590,7 +460,7 @@
     }
 
     function deleteProduct(id) {
-      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử nhập, bán, biếu tặng và hư hỏng liên quan. Bạn có chắc chắn?")) {
+      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử liên quan. Bạn có chắc chắn?")) {
         db.products = db.products.filter(p => p.id !== id);
         db.imports = (db.imports || []).filter(i => i.productId !== id);
         db.sales = db.sales.filter(s => s.productId !== id);
@@ -602,9 +472,7 @@
       }
     }
 
-    // ==========================================
-    // 2. SALES TAB (BÁN HÀNG)
-    // ==========================================
+    // 2. SALES TAB
     function toggleDailySalesGroup(dateKey) {
       openDailySalesMap[dateKey] = !openDailySalesMap[dateKey];
       renderSales();
@@ -613,10 +481,7 @@
 
     function renderSales() {
       const container = document.getElementById('app-content');
-
-      let productOptions = db.products.map(p => 
-        `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
-      ).join('');
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
 
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
@@ -631,7 +496,6 @@
                 ${productOptions}
               </select>
             </div>
-
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày bán</label>
@@ -642,12 +506,10 @@
                 <input type="number" step="any" id="s-qty" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-
             <div>
               <label class="block text-xs text-slate-500 mb-1">Tổng tiền khách trả (Tổng Doanh Thu - VND)</label>
               <input type="number" id="s-total-revenue" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
-
             <div class="bg-emerald-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-emerald-100 text-xs">
               <div>
                 <span class="text-slate-500 block">Giá bán thực tế / ĐVT:</span>
@@ -658,38 +520,23 @@
                 <span id="s-profit-preview" class="font-bold text-ios-green">0 đ</span>
               </div>
             </div>
-
             <button type="submit" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
               Xác Nhận Bán Hàng
             </button>
           </form>
         </div>
-
         <div class="space-y-3">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử bán hàng theo ngày</h2>
       `;
 
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
-
       if (validSales.length === 0) {
-        html += `
-          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm">Chưa có giao dịch bán nào</p>
-          </div>
-        `;
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có giao dịch bán nào</p></div>`;
       } else {
         let dailyGroupMap = {};
         validSales.forEach(s => {
           const dateKey = s.date || 'Chưa rõ ngày';
-          if (!dailyGroupMap[dateKey]) {
-            dailyGroupMap[dateKey] = {
-              revenue: 0,
-              cost: 0,
-              profit: 0,
-              items: []
-            };
-          }
+          if (!dailyGroupMap[dateKey]) dailyGroupMap[dateKey] = { revenue: 0, cost: 0, profit: 0, items: [] };
           dailyGroupMap[dateKey].revenue += (s.totalRevenue || 0);
           dailyGroupMap[dateKey].cost += (s.totalCost || 0);
           dailyGroupMap[dateKey].profit += (s.profit || 0);
@@ -697,14 +544,14 @@
         });
 
         const sortedDates = Object.keys(dailyGroupMap).sort().reverse();
-
         if (sortedDates.length > 0 && openDailySalesMap[sortedDates[0]] === undefined) {
           openDailySalesMap[sortedDates[0]] = true;
         }
 
         sortedDates.forEach(dateKey => {
           const group = dailyGroupMap[dateKey];
-          const marginPercent = group.cost > 0 ? ((group.profit / group.cost) * 100).toFixed(1) : 0;
+          // % Lãi trên giá bán (Margin) cho nhóm ngày
+          const marginPercent = group.revenue > 0 ? ((group.profit / group.revenue) * 100).toFixed(1) : 0;
           const isOpen = !!openDailySalesMap[dateKey];
 
           html += `
@@ -712,54 +559,36 @@
               <div onclick="toggleDailySalesGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
                 <div>
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                      <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}
-                    </span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
-                      ${group.items.length} mặt hàng
-                    </span>
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${group.items.length} mặt hàng</span>
                   </div>
-                  <p class="text-xs text-slate-500 mt-1">
-                    Doanh thu: <b class="text-slate-800">${formatMoney(group.revenue)}</b>
-                  </p>
+                  <p class="text-xs text-slate-500 mt-1">Doanh thu: <b class="text-slate-800">${formatMoney(group.revenue)}</b></p>
                 </div>
-
                 <div class="text-right flex items-center gap-3">
                   <div>
-                    <span class="text-xs font-bold ${group.profit >= 0 ? 'text-ios-green' : 'text-ios-red'} block">
-                      Lãi: ${formatMoney(group.profit)}
-                    </span>
-                    <span class="text-[10px] font-bold text-ios-green bg-emerald-50 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
-                      +${marginPercent}% vốn
-                    </span>
+                    <span class="text-xs font-bold ${group.profit >= 0 ? 'text-ios-green' : 'text-ios-red'} block">Lãi: ${formatMoney(group.profit)}</span>
+                    <span class="text-[10px] font-bold text-ios-green bg-emerald-50 px-1.5 py-0.5 rounded-full inline-block mt-0.5">${marginPercent}% giá bán</span>
                   </div>
                   <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
                 </div>
               </div>
-
               ${isOpen ? `
                 <div class="p-3 space-y-2 bg-white">
                   ${group.items.map(s => {
                     const prod = db.products.find(p => p.id === s.productId);
-                    const itemMargin = s.marginPercent !== undefined ? s.marginPercent : (s.totalCost > 0 ? ((s.profit / s.totalCost) * 100).toFixed(1) : 0);
+                    const itemMargin = s.totalRevenue > 0 ? ((s.profit / s.totalRevenue) * 100).toFixed(1) : 0;
                     return `
                       <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
                         <div>
                           <span class="font-bold text-slate-800 text-xs">${prod ? prod.name : 'Sản phẩm'}</span>
-                          <p class="text-[11px] text-slate-500 mt-0.5">
-                            Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod ? prod.unit : ''}</b> (${formatMoney(s.actualUnitPrice)} / ${prod ? prod.unit : ''})
-                          </p>
+                          <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod ? prod.unit : ''}</b></p>
                         </div>
                         <div class="text-right flex items-center gap-2.5">
                           <div>
                             <p class="text-xs font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
-                            <p class="text-[11px] font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">
-                              Lãi: ${formatMoney(s.profit)} (${itemMargin}%)
-                            </p>
+                            <p class="text-[11px] font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">Lãi: ${formatMoney(s.profit)} (${itemMargin}%)</p>
                           </div>
-                          <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đơn bán này">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                          </button>
+                          <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                         </div>
                       </div>
                     `;
@@ -770,7 +599,6 @@
           `;
         });
       }
-
       html += `</div>`;
       container.innerHTML = html;
     }
@@ -780,9 +608,7 @@
       const prod = db.products.find(p => p.id === pId);
       if (prod) {
         const qty = parseFloat(document.getElementById('s-qty').value) || 0;
-        if (qty > 0) {
-          document.getElementById('s-total-revenue').value = Math.round(qty * prod.minSuggestPrice);
-        }
+        if (qty > 0) document.getElementById('s-total-revenue').value = Math.round(qty * prod.minSuggestPrice);
         calcSalePreview();
       }
     }
@@ -791,18 +617,9 @@
       const pId = document.getElementById('s-product-id').value;
       const qty = parseFloat(document.getElementById('s-qty').value) || 0;
       const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
-
       const prod = db.products.find(p => p.id === pId);
-      let unitPrice = 0;
-      let profit = 0;
-
-      if (qty > 0) unitPrice = totalRevenue / qty;
-
-      if (prod && qty > 0) {
-        let totalCost = qty * prod.avgImportCost;
-        profit = totalRevenue - totalCost;
-      }
-
+      let unitPrice = qty > 0 ? totalRevenue / qty : 0;
+      let profit = prod && qty > 0 ? totalRevenue - (qty * prod.avgImportCost) : 0;
       document.getElementById('s-unit-price-preview').innerText = formatMoney(unitPrice) + ' / đvt';
       document.getElementById('s-profit-preview').innerText = formatMoney(profit);
     }
@@ -813,52 +630,27 @@
       const date = document.getElementById('s-date').value;
       const qty = parseFloat(document.getElementById('s-qty').value) || 0;
       const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
-
       const prod = db.products.find(p => p.id === productId);
-      if (!prod) {
-        alert("Vui lòng chọn sản phẩm!");
-        return;
-      }
 
-      if (qty <= 0) {
-        alert("Số lượng bán phải lớn hơn 0!");
-        return;
-      }
-
-      if (qty > prod.currentStock) {
-        if (!confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
-          return;
-        }
-      }
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng bán phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Tiếp tục?`)) return;
 
       const totalCost = qty * prod.avgImportCost;
       const profit = totalRevenue - totalCost;
       const actualUnitPrice = totalRevenue / qty;
-      const marginPercent = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
+      const marginPercent = totalRevenue > 0 ? ((profit / totalRevenue) * 100).toFixed(1) : 0;
 
       prod.currentStock -= qty;
-
       openDailySalesMap[date] = true;
-
-      db.sales.push({
-        id: 'S_' + Date.now(),
-        date,
-        productId,
-        qty,
-        totalRevenue,
-        actualUnitPrice,
-        totalCost,
-        profit,
-        marginPercent
-      });
-
+      db.sales.push({ id: 'S_' + Date.now(), date, productId, qty, totalRevenue, actualUnitPrice, totalCost, profit, marginPercent });
       saveDB();
       renderSales();
       lucide.createIcons();
     }
 
     function deleteSale(saleId) {
-      if (confirm("Bạn muốn xóa đơn bán này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
+      if (confirm("Bạn muốn xóa đơn bán này?")) {
         const sale = db.sales.find(s => s.id === saleId);
         if (sale) {
           const prod = db.products.find(p => p.id === sale.productId);
@@ -871,16 +663,10 @@
       }
     }
 
-    // ==========================================
-    // 3. GIVEAWAYS TAB (BIẾU TẶNG)
-    // ==========================================
+    // 3. GIVEAWAYS TAB
     function renderGiveaways() {
       const container = document.getElementById('app-content');
-
-      let productOptions = db.products.map(p => 
-        `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
-      ).join('');
-
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
@@ -894,7 +680,6 @@
                 ${productOptions}
               </select>
             </div>
-
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày biếu</label>
@@ -905,58 +690,38 @@
                 <input type="number" step="any" id="g-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-
             <div>
               <label class="block text-xs text-slate-500 mb-1">Ghi chú (Biếu ai / Địa điểm)</label>
-              <input type="text" id="g-note" placeholder="VD: Bà, Nhà ăn số 2, Anh Nam..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <input type="text" id="g-note" placeholder="VD: Bà, Nhà ăn số 2..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
-
             <button type="submit" class="w-full bg-ios-pink text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
               Xác Nhận Biếu Tặng
             </button>
           </form>
         </div>
-
-        <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử biếu tặng</h2>
+        <div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử biếu tặng</h2>
       `;
-
       const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
-
       if (validGiveaways.length === 0) {
-        html += `
-          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="heart-handshake" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm">Chưa có lịch sử biếu tặng nào</p>
-          </div>
-        `;
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="heart-handshake" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có lịch sử biếu tặng nào</p></div>`;
       } else {
-        const sortedGiveaways = [...validGiveaways].reverse();
-        sortedGiveaways.forEach(g => {
+        [...validGiveaways].reverse().forEach(g => {
           const prod = db.products.find(p => p.id === g.productId);
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-slate-900">${prod.name}</span>
-                  <span class="text-xs text-slate-400">${g.date}</span>
-                </div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod.name}</span><span class="text-xs text-slate-400">${g.date}</span></div>
                 <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod.unit}</b></p>
                 ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 Biếu: <b>${g.note}</b></p>` : ''}
               </div>
               <div class="text-right flex items-center gap-3">
-                <span class="text-xs font-bold bg-pink-50 text-ios-pink px-2.5 py-1 rounded-full">
-                  Vốn: ${formatMoney(g.costValue)}
-                </span>
-                <button onclick="deleteGiveaway('${g.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa lịch sử biếu">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+                <span class="text-xs font-bold bg-pink-50 text-ios-pink px-2.5 py-1 rounded-full">Vốn: ${formatMoney(g.costValue)}</span>
+                <button onclick="deleteGiveaway('${g.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
               </div>
             </div>
           `;
         });
       }
-
       html += `</div>`;
       container.innerHTML = html;
     }
@@ -967,44 +732,23 @@
       const date = document.getElementById('g-date').value;
       const qty = parseFloat(document.getElementById('g-qty').value) || 0;
       const note = document.getElementById('g-note').value.trim();
-
       const prod = db.products.find(p => p.id === productId);
-      if (!prod) {
-        alert("Vui lòng chọn sản phẩm!");
-        return;
-      }
 
-      if (qty <= 0) {
-        alert("Số lượng biếu phải lớn hơn 0!");
-        return;
-      }
-
-      if (qty > prod.currentStock) {
-        if (!confirm(`Số lượng biếu (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
-          return;
-        }
-      }
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng biếu phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
 
       const costValue = qty * prod.avgImportCost;
       prod.currentStock -= qty;
-
       if (!db.giveaways) db.giveaways = [];
-      db.giveaways.push({
-        id: 'G_' + Date.now(),
-        date,
-        productId,
-        qty,
-        note,
-        costValue
-      });
-
+      db.giveaways.push({ id: 'G_' + Date.now(), date, productId, qty, note, costValue });
       saveDB();
       renderGiveaways();
       lucide.createIcons();
     }
 
     function deleteGiveaway(giveawayId) {
-      if (confirm("Bạn muốn xóa lượt biếu này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
+      if (confirm("Bạn muốn xóa lượt biếu này?")) {
         const giveaway = db.giveaways.find(g => g.id === giveawayId);
         if (giveaway) {
           const prod = db.products.find(p => p.id === giveaway.productId);
@@ -1017,16 +761,10 @@
       }
     }
 
-    // ==========================================
-    // 4. DAMAGED TAB (HƯ HỎNG)
-    // ==========================================
+    // 4. DAMAGED TAB
     function renderDamaged() {
       const container = document.getElementById('app-content');
-
-      let productOptions = db.products.map(p => 
-        `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
-      ).join('');
-
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
       let html = `
         <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
           <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
@@ -1040,7 +778,6 @@
                 ${productOptions}
               </select>
             </div>
-
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày hư hỏng</label>
@@ -1051,58 +788,38 @@
                 <input type="number" step="any" id="d-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-
             <div>
               <label class="block text-xs text-slate-500 mb-1">Nguyên nhân / Ghi chú</label>
-              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển, hỏng thối..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
             </div>
-
             <button type="submit" class="w-full bg-ios-orange text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
               Xác Nhận Ghi Nhận Hư Hỏng
             </button>
           </form>
         </div>
-
-        <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử hư hỏng & hao hụt</h2>
+        <div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử hư hỏng & hao hụt</h2>
       `;
-
       const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
-
       if (validDamaged.length === 0) {
-        html += `
-          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm">Chưa có ghi nhận hư hỏng nào</p>
-          </div>
-        `;
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có ghi nhận hư hỏng nào</p></div>`;
       } else {
-        const sortedDamaged = [...validDamaged].reverse();
-        sortedDamaged.forEach(d => {
+        [...validDamaged].reverse().forEach(d => {
           const prod = db.products.find(p => p.id === d.productId);
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-slate-900">${prod.name}</span>
-                  <span class="text-xs text-slate-400">${d.date}</span>
-                </div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod.name}</span><span class="text-xs text-slate-400">${d.date}</span></div>
                 <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod.unit}</b></p>
                 ${d.note ? `<p class="text-[11px] text-slate-400 mt-0.5">⚠️ Lý do: <b>${d.note}</b></p>` : ''}
               </div>
               <div class="text-right flex items-center gap-3">
-                <span class="text-xs font-bold bg-orange-50 text-ios-orange px-2.5 py-1 rounded-full">
-                  Thất thoát: ${formatMoney(d.costValue)}
-                </span>
-                <button onclick="deleteDamaged('${d.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa ghi nhận hư hỏng">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+                <span class="text-xs font-bold bg-orange-50 text-ios-orange px-2.5 py-1 rounded-full">Thất thoát: ${formatMoney(d.costValue)}</span>
+                <button onclick="deleteDamaged('${d.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
               </div>
             </div>
           `;
         });
       }
-
       html += `</div>`;
       container.innerHTML = html;
     }
@@ -1113,44 +830,23 @@
       const date = document.getElementById('d-date').value;
       const qty = parseFloat(document.getElementById('d-qty').value) || 0;
       const note = document.getElementById('d-note').value.trim();
-
       const prod = db.products.find(p => p.id === productId);
-      if (!prod) {
-        alert("Vui lòng chọn sản phẩm!");
-        return;
-      }
 
-      if (qty <= 0) {
-        alert("Số lượng hư hỏng phải lớn hơn 0!");
-        return;
-      }
-
-      if (qty > prod.currentStock) {
-        if (!confirm(`Số lượng báo hỏng (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Bạn có muốn tiếp tục?`)) {
-          return;
-        }
-      }
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng hư hỏng phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
 
       const costValue = qty * prod.avgImportCost;
       prod.currentStock -= qty;
-
       if (!db.damaged) db.damaged = [];
-      db.damaged.push({
-        id: 'D_' + Date.now(),
-        date,
-        productId,
-        qty,
-        note,
-        costValue
-      });
-
+      db.damaged.push({ id: 'D_' + Date.now(), date, productId, qty, note, costValue });
       saveDB();
       renderDamaged();
       lucide.createIcons();
     }
 
     function deleteDamaged(damagedId) {
-      if (confirm("Bạn muốn xóa ghi nhận hư hỏng này? (Số lượng tồn kho sẽ được cộng trả lại)")) {
+      if (confirm("Bạn muốn xóa ghi nhận hư hỏng này?")) {
         const damagedItem = db.damaged.find(d => d.id === damagedId);
         if (damagedItem) {
           const prod = db.products.find(p => p.id === damagedItem.productId);
@@ -1163,49 +859,28 @@
       }
     }
 
-    // ==========================================
-    // 5. REPORTS TAB (BÁO CÁO)
-    // ==========================================
+    // 5. REPORTS TAB
     function changeReportMonth(monthVal) {
       selectedReportMonth = monthVal;
       renderReports();
       lucide.createIcons();
     }
-
-    function toggleProfitChart() {
-      showProfitChart = !showProfitChart;
-      renderReports();
-      lucide.createIcons();
-    }
-
-    function toggleGiveawayChart() {
-      showGiveawayChart = !showGiveawayChart;
-      renderReports();
-      lucide.createIcons();
-    }
-
-    function toggleDamagedChart() {
-      showDamagedChart = !showDamagedChart;
-      renderReports();
-      lucide.createIcons();
-    }
-
+    function toggleProfitChart() { showProfitChart = !showProfitChart; renderReports(); lucide.createIcons(); }
+    function toggleGiveawayChart() { showGiveawayChart = !showGiveawayChart; renderReports(); lucide.createIcons(); }
+    function toggleDamagedChart() { showDamagedChart = !showDamagedChart; renderReports(); lucide.createIcons(); }
     function capitalizeWord(str) {
       if (!str) return 'Chưa ghi chú / Khác';
       const clean = str.trim().toLowerCase();
-      if (!clean) return 'Chưa ghi chú / Khác';
-      return clean.charAt(0).toUpperCase() + clean.slice(1);
+      return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'Chưa ghi chú / Khác';
     }
 
     function renderReports() {
       const container = document.getElementById('app-content');
-
       const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
       const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
       const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
 
       let monthlyMap = {};
-
       validSales.forEach(s => {
         if (!s.date) return;
         const mKey = s.date.substring(0, 7);
@@ -1214,14 +889,12 @@
         monthlyMap[mKey].cost += (s.totalCost || 0);
         monthlyMap[mKey].profit += (s.profit || 0);
       });
-
       validGiveaways.forEach(g => {
         if (!g.date) return;
         const mKey = g.date.substring(0, 7);
         if (!monthlyMap[mKey]) monthlyMap[mKey] = { revenue: 0, cost: 0, profit: 0, giveawayVal: 0, damagedVal: 0 };
         monthlyMap[mKey].giveawayVal += (g.costValue || 0);
       });
-
       validDamaged.forEach(d => {
         if (!d.date) return;
         const mKey = d.date.substring(0, 7);
@@ -1230,7 +903,6 @@
       });
 
       const sortedMonths = Object.keys(monthlyMap).sort().reverse();
-
       let filteredSales = validSales;
       let filteredGiveaways = validGiveaways;
       let filteredDamaged = validDamaged;
@@ -1241,31 +913,30 @@
         filteredDamaged = validDamaged.filter(d => d.date && d.date.startsWith(selectedReportMonth));
       }
 
-      let totalRevenue = 0;
-      let totalCost = 0;
-      let totalProfit = 0;
+      let totalRevenue = 0, totalCost = 0, totalProfit = 0;
       filteredSales.forEach(s => {
         totalRevenue += (s.totalRevenue || 0);
         totalCost += (s.totalCost || 0);
         totalProfit += (s.profit || 0);
       });
 
-      const avgProfitMargin = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(1) : 0;
+      // % Lãi trên giá bán (Margin) tổng hợp
+      const avgProfitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
 
-      let totalGiveawayValue = 0;
-      filteredGiveaways.forEach(g => totalGiveawayValue += (g.costValue || 0));
-
-      let totalDamagedValue = 0;
-      filteredDamaged.forEach(d => totalDamagedValue += (d.costValue || 0));
+      let totalGiveawayValue = 0; filteredGiveaways.forEach(g => totalGiveawayValue += (g.costValue || 0));
+      let totalDamagedValue = 0; filteredDamaged.forEach(d => totalDamagedValue += (d.costValue || 0));
 
       let giveawayVsProfitPercent = totalProfit > 0 ? ((totalGiveawayValue / totalProfit) * 100).toFixed(1) : '0.0';
       let damagedVsProfitPercent = totalProfit > 0 ? ((totalDamagedValue / totalProfit) * 100).toFixed(1) : '0.0';
 
+      // Tổng vốn nhập toàn bộ hệ thống hoặc theo bộ lọc
+      let totalImportBudget = 0;
+      db.products.forEach(p => totalImportBudget += (p.totalImportCost || 0));
+
       let monthOptions = `<option value="ALL">🗓️ Tất cả các tháng (Tổng hợp)</option>`;
       sortedMonths.forEach(m => {
         const parts = m.split('-');
-        const label = `Tháng ${parts[1]} / ${parts[0]}`;
-        monthOptions += `<option value="${m}" ${selectedReportMonth === m ? 'selected' : ''}>${label}</option>`;
+        monthOptions += `<option value="${m}" ${selectedReportMonth === m ? 'selected' : ''}>Tháng ${parts[1]} / ${parts[0]}</option>`;
       });
 
       let html = `
@@ -1279,8 +950,9 @@
         <div class="grid grid-cols-1 gap-3 mb-4">
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
-              <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng</p>
+              <p class="text-xs text-slate-400 font-medium">Tổng Doanh Thu Bán Hàng (Gốc thu về / Vốn bỏ ra)</p>
               <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalRevenue)}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Vốn bán ra: <b>${formatMoney(totalCost)}</b> / Tổng vốn nhập: <b>${formatMoney(totalImportBudget)}</b></p>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
               <i data-lucide="trending-up" class="w-5 h-5"></i>
@@ -1291,7 +963,7 @@
             <div>
               <div class="flex items-center gap-1.5">
                 <p class="text-xs text-slate-500 font-bold">Lợi Nhuận Kinh Doanh</p>
-                <span class="text-[10px] text-ios-green font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">+${avgProfitMargin}% vốn</span>
+                <span class="text-[10px] text-ios-green font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">+${avgProfitMargin}% giá bán</span>
               </div>
               <p class="text-2xl font-black ${totalProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} mt-0.5">${formatMoney(totalProfit)}</p>
               <p class="text-[10px] text-ios-blue flex items-center gap-0.5 mt-1 font-medium">
@@ -1313,15 +985,9 @@
                 <span class="text-[10px] text-ios-pink font-bold bg-pink-50 px-1.5 py-0.5 rounded-full">Chiếm ${giveawayVsProfitPercent}% Lãi</span>
               </div>
               <p class="text-xl font-extrabold text-ios-pink mt-0.5">${formatMoney(totalGiveawayValue)}</p>
-              <p class="text-[10px] text-ios-pink flex items-center gap-0.5 mt-1 font-medium">
-                ${showGiveawayChart ? 'Bấm để ẩn biểu đồ chi tiết' : 'Bấm xem chi tiết Biếu tặng'}
-              </p>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
-                <i data-lucide="gift" class="w-5 h-5"></i>
-              </div>
-              <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${showGiveawayChart ? 'rotate-180' : ''}"></i>
+            <div class="w-10 h-10 bg-pink-50 text-ios-pink rounded-full flex items-center justify-center">
+              <i data-lucide="gift" class="w-5 h-5"></i>
             </div>
           </div>
 
@@ -1332,15 +998,9 @@
                 <span class="text-[10px] text-ios-orange font-bold bg-orange-50 px-1.5 py-0.5 rounded-full">Chiếm ${damagedVsProfitPercent}% Lãi</span>
               </div>
               <p class="text-xl font-extrabold text-ios-orange mt-0.5">${formatMoney(totalDamagedValue)}</p>
-              <p class="text-[10px] text-ios-orange flex items-center gap-0.5 mt-1 font-medium">
-                ${showDamagedChart ? 'Bấm để ẩn biểu đồ chi tiết' : 'Bấm xem chi tiết Hư hỏng'}
-              </p>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="w-10 h-10 bg-orange-50 text-ios-orange rounded-full flex items-center justify-center">
-                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-              </div>
-              <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${showDamagedChart ? 'rotate-180' : ''}"></i>
+            <div class="w-10 h-10 bg-orange-50 text-ios-orange rounded-full flex items-center justify-center">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
             </div>
           </div>
         </div>
@@ -1348,54 +1008,32 @@
 
       if (showProfitChart) {
         html += `
-          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3 transition-all">
+          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-3">
             <h2 class="text-xs font-bold text-slate-700 flex items-center justify-between border-b border-slate-100 pb-2">
-              <span class="flex items-center gap-1.5">
-                <i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng
-              </span>
-            </h2>
+              <span class="flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-ios-blue"></i> Biểu đồ Doanh thu & Lợi nhuận các tháng</span>
+            </div>
         `;
-
         if (sortedMonths.length === 0) {
           html += `<p class="text-center text-xs text-slate-400 py-3">Chưa có dữ liệu giao dịch</p>`;
         } else {
-          let maxRev = 1;
-          sortedMonths.forEach(m => {
-            if (monthlyMap[m].revenue > maxRev) maxRev = monthlyMap[m].revenue;
-          });
-
+          let maxRev = 1; sortedMonths.forEach(m => { if (monthlyMap[m].revenue > maxRev) maxRev = monthlyMap[m].revenue; });
           html += `<div class="space-y-3 pt-1">`;
           sortedMonths.forEach(m => {
             const data = monthlyMap[m];
             const parts = m.split('-');
-            const mLabel = `Tháng ${parts[1]}/${parts[0]}`;
             const revPercent = Math.round((data.revenue / maxRev) * 100);
-            const monthMargin = data.cost > 0 ? ((data.profit / data.cost) * 100).toFixed(1) : 0;
+            const monthMargin = data.revenue > 0 ? ((data.profit / data.revenue) * 100).toFixed(1) : 0;
 
             html += `
               <div class="bg-slate-50 p-3 rounded-xl space-y-2">
                 <div class="flex justify-between items-center text-xs">
-                  <span class="font-bold text-slate-800">${mLabel}</span>
-                  <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)} (<b class="text-ios-blue">+${monthMargin}%</b>)</span>
+                  <span class="font-bold text-slate-800">Tháng ${parts[1]}/${parts[0]}</span>
+                  <span class="text-[11px] font-bold text-ios-green">Lãi: ${formatMoney(data.profit)} (<b class="text-ios-blue">+${monthMargin}% giá bán</b>)</span>
                 </div>
                 <div class="space-y-1.5">
                   <div>
-                    <div class="flex justify-between text-[10px] text-slate-500 mb-0.5">
-                      <span>Doanh thu:</span>
-                      <span class="font-bold text-slate-700">${formatMoney(data.revenue)}</span>
-                    </div>
-                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                      <div class="bg-ios-blue h-full rounded-full transition-all duration-500" style="width: ${revPercent}%"></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div class="flex justify-between text-[10px] text-slate-500 mb-0.5">
-                      <span>Vốn bán:</span>
-                      <span class="font-bold text-slate-600">${formatMoney(data.cost)}</span>
-                    </div>
-                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                      <div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: ${Math.round((data.cost / maxRev) * 100)}%"></div>
-                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 mb-0.5"><span>Doanh thu:</span><span class="font-bold text-slate-700">${formatMoney(data.revenue)}</span></div>
+                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-ios-blue h-full rounded-full" style="width: ${revPercent}%"></div></div>
                   </div>
                 </div>
               </div>
@@ -1406,173 +1044,14 @@
         html += `</div>`;
       }
 
-      if (showGiveawayChart) {
-        html += `
-          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
-            <h2 class="text-xs font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-2">
-              <span class="flex items-center gap-1.5">
-                <i data-lucide="pie-chart" class="w-4 h-4 text-ios-pink"></i> Biểu đồ % Biếu Tặng / Tổng Lãi
-              </span>
-            </h2>
-
-            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-600 font-medium">% Vốn Biếu Tặng ăn vào Tổng Lãi:</span>
-                <span class="font-bold text-ios-pink">${giveawayVsProfitPercent}%</span>
-              </div>
-              <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
-                <div class="bg-ios-pink h-full rounded-full transition-all duration-500" style="width: ${Math.min(giveawayVsProfitPercent, 100)}%"></div>
-              </div>
-              <p class="text-[10px] text-slate-400">Vốn biếu (${formatMoney(totalGiveawayValue)}) / Tổng lãi (${formatMoney(totalProfit)})</p>
-            </div>
-
-            <div class="space-y-3 pt-1">
-              <p class="text-xs font-semibold text-slate-500">1. Chi tiết Biếu Tặng theo Mặt Hàng:</p>
-        `;
-
-        if (filteredGiveaways.length === 0) {
-          html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có dữ liệu biếu tặng</p>`;
-        } else {
-          db.products.forEach(p => {
-            const pGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
-            if (pGiveaways.length > 0) {
-              const gQty = pGiveaways.reduce((sum, g) => sum + g.qty, 0);
-              const gCost = pGiveaways.reduce((sum, g) => sum + (g.costValue || 0), 0);
-              const itemGiveawayPercentOfProfit = totalProfit > 0 ? ((gCost / totalProfit) * 100).toFixed(1) : '0.0';
-
-              html += `
-                <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl">
-                  <div>
-                    <span class="font-bold text-slate-800 block">${p.name}</span>
-                    <span class="text-[11px] text-slate-500">Đã biếu: <b>${formatNum(gQty)} ${p.unit}</b> (${pGiveaways.length} lượt)</span>
-                  </div>
-                  <div class="text-right">
-                    <span class="font-bold text-ios-pink block">${formatMoney(gCost)}</span>
-                    <span class="text-[10px] text-slate-400">Chiếm <b>${itemGiveawayPercentOfProfit}%</b> lãi</span>
-                  </div>
-                </div>
-              `;
-            }
-          });
-
-          let recipientMap = {};
-          filteredGiveaways.forEach(g => {
-            let rec = capitalizeWord(g.note);
-            if (!recipientMap[rec]) recipientMap[rec] = { totalCost: 0, count: 0 };
-            recipientMap[rec].totalCost += (g.costValue || 0);
-            recipientMap[rec].count += 1;
-          });
-
-          html += `
-            <div class="pt-2 space-y-2">
-              <p class="text-xs font-semibold text-slate-500">2. Theo Đối Tượng / Người Nhận:</p>
-              <div class="space-y-1.5">
-          `;
-
-          Object.keys(recipientMap).forEach(rec => {
-            const recData = recipientMap[rec];
-            html += `
-              <div class="flex justify-between items-center text-xs bg-pink-50/50 p-2.5 rounded-xl border border-pink-100">
-                <span class="font-medium text-slate-700">🎁 ${rec} <span class="text-[10px] text-slate-400">(${recData.count} lượt)</span></span>
-                <span class="font-bold text-ios-pink">${formatMoney(recData.totalCost)}</span>
-              </div>
-            `;
-          });
-
-          html += `</div></div>`;
-        }
-        html += `</div>`;
-      }
-
-      if (showDamagedChart) {
-        html += `
-          <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-slate-100 space-y-4 transition-all">
-            <h2 class="text-xs font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-2">
-              <span class="flex items-center gap-1.5">
-                <i data-lucide="alert-triangle" class="w-4 h-4 text-ios-orange"></i> Biểu đồ % Hư Hỏng / Tổng Lãi
-              </span>
-            </h2>
-
-            <div class="bg-slate-50 p-3 rounded-xl space-y-1.5">
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-600 font-medium">% Vốn Hư Hỏng làm giảm Tổng Lãi:</span>
-                <span class="font-bold text-ios-orange">${damagedVsProfitPercent}%</span>
-              </div>
-              <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
-                <div class="bg-ios-orange h-full rounded-full transition-all duration-500" style="width: ${Math.min(damagedVsProfitPercent, 100)}%"></div>
-              </div>
-              <p class="text-[10px] text-slate-400">Vốn hỏng (${formatMoney(totalDamagedValue)}) / Tổng lãi (${formatMoney(totalProfit)})</p>
-            </div>
-
-            <div class="space-y-3 pt-1">
-              <p class="text-xs font-semibold text-slate-500">1. Chi tiết Hư Hỏng theo Mặt Hàng:</p>
-        `;
-
-        if (filteredDamaged.length === 0) {
-          html += `<p class="text-center text-xs text-slate-400 py-2">Chưa có ghi nhận hư hỏng</p>`;
-        } else {
-          db.products.forEach(p => {
-            const pDamaged = filteredDamaged.filter(d => d.productId === p.id);
-            if (pDamaged.length > 0) {
-              const dQty = pDamaged.reduce((sum, d) => sum + d.qty, 0);
-              const dCost = pDamaged.reduce((sum, d) => sum + (d.costValue || 0), 0);
-              const itemDamagedPercentOfProfit = totalProfit > 0 ? ((dCost / totalProfit) * 100).toFixed(1) : '0.0';
-
-              html += `
-                <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl">
-                  <div>
-                    <span class="font-bold text-slate-800 block">${p.name}</span>
-                    <span class="text-[11px] text-slate-500">Đã hỏng: <b>${formatNum(dQty)} ${p.unit}</b> (${pDamaged.length} lượt)</span>
-                  </div>
-                  <div class="text-right">
-                    <span class="font-bold text-ios-orange block">${formatMoney(dCost)}</span>
-                    <span class="text-[10px] text-slate-400">Chiếm <b>${itemDamagedPercentOfProfit}%</b> lãi</span>
-                  </div>
-                </div>
-              `;
-            }
-          });
-
-          let reasonMap = {};
-          filteredDamaged.forEach(d => {
-            let reason = capitalizeWord(d.note);
-            if (!reasonMap[reason]) reasonMap[reason] = { totalCost: 0, count: 0 };
-            reasonMap[reason].totalCost += (d.costValue || 0);
-            reasonMap[reason].count += 1;
-          });
-
-          html += `
-            <div class="pt-2 space-y-2">
-              <p class="text-xs font-semibold text-slate-500">2. Theo Nguyên Nhân / Lý Do Hỏng:</p>
-              <div class="space-y-1.5">
-          `;
-
-          Object.keys(reasonMap).forEach(r => {
-            const rData = reasonMap[r];
-            html += `
-              <div class="flex justify-between items-center text-xs bg-orange-50/50 p-2.5 rounded-xl border border-orange-100">
-                <span class="font-medium text-slate-700">⚠️ ${r} <span class="text-[10px] text-slate-400">(${rData.count} lượt)</span></span>
-                <span class="font-bold text-ios-orange">${formatMoney(rData.totalCost)}</span>
-              </div>
-            `;
-          });
-
-          html += `</div></div>`;
-        }
-        html += `</div>`;
-      }
-
+      // Chi tiết kinh doanh từng mặt hàng
       html += `
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả các tháng' : selectedReportMonth})</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết kinh doanh từng mặt hàng (${selectedReportMonth === 'ALL' ? 'Tất cả' : selectedReportMonth})</h2>
       `;
 
       if (db.products.length === 0) {
-        html += `
-          <div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            <p class="text-xs">Chưa có sản phẩm nào</p>
-          </div>
-        `;
+        html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
       } else {
         db.products.forEach(p => {
           const itemSales = filteredSales.filter(s => s.productId === p.id);
@@ -1580,7 +1059,12 @@
           const itemRevenue = itemSales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
           const itemCost = itemSales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
           const itemProfit = itemSales.reduce((sum, s) => sum + (s.profit || 0), 0);
-          const itemMargin = itemCost > 0 ? ((itemProfit / itemCost) * 100).toFixed(1) : 0;
+          const itemMargin = itemRevenue > 0 ? ((itemProfit / itemRevenue) * 100).toFixed(1) : 0;
+
+          // Tỷ lệ Vốn bán trên Tổng vốn nhập của sản phẩm
+          const costImportRatio = p.totalImportCost > 0 ? ((itemCost / p.totalImportCost) * 100).toFixed(1) : 0;
+          // Thanh doanh thu bằng lãi (tỷ trọng lợi nhuận so với doanh thu hoặc tiến độ)
+          const profitBarWidth = itemRevenue > 0 ? Math.min(Math.round((itemProfit / itemRevenue) * 100), 100) : 0;
 
           const itemGiveaways = filteredGiveaways.filter(g => g.productId === p.id);
           const giveawayQty = itemGiveaways.reduce((sum, g) => sum + g.qty, 0);
@@ -1591,16 +1075,16 @@
           const damagedVal = itemDamaged.reduce((sum, d) => sum + (d.costValue || 0), 0);
 
           html += `
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span class="font-bold text-slate-900 text-base">${p.name}</span>
                 <span class="text-xs font-bold ${itemProfit >= 0 ? 'text-ios-green' : 'text-ios-red'} bg-emerald-50 px-2.5 py-1 rounded-full">
-                  Lãi: ${formatMoney(itemProfit)} (+${itemMargin}%)
+                  Lãi: ${formatMoney(itemProfit)} (+${itemMargin}% giá bán)
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">
                 <div class="space-y-0.5">
-                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b></p>
+                  <p>Tổng Nhập: <b class="text-slate-700">${formatNum(p.importQty)} ${p.unit}</b> (${formatMoney(p.totalImportCost)})</p>
                   <p>Đã Bán: <b class="text-slate-700">${formatNum(soldQty)} ${p.unit}</b></p>
                   <p>Biếu Tặng: <b class="text-ios-pink">${formatNum(giveawayQty)} ${p.unit}</b></p>
                   <p>Hư Hỏng: <b class="text-ios-orange">${formatNum(damagedQty)} ${p.unit}</b></p>
@@ -1608,16 +1092,25 @@
                 </div>
                 <div class="text-right space-y-0.5">
                   <p>Doanh thu bán: <b class="text-slate-800">${formatMoney(itemRevenue)}</b></p>
-                  <p>Vốn bán: <b class="text-slate-800">${formatMoney(itemCost)}</b></p>
+                  <p>Vốn bán / Tổng vốn: <b class="text-slate-800">${formatMoney(itemCost)} / ${formatMoney(p.totalImportCost)}</b> <span class="text-[10px] text-ios-blue">(${costImportRatio}%)</span></p>
                   <p>Vốn biếu: <b class="text-ios-pink">${formatMoney(giveawayVal)}</b></p>
                   <p>Vốn hỏng: <b class="text-ios-orange">${formatMoney(damagedVal)}</b></p>
+                </div>
+              </div>
+              <!-- Thanh Doanh thu / Lợi nhuận trực quan -->
+              <div class="space-y-1 pt-1">
+                <div class="flex justify-between text-[11px] text-slate-500">
+                  <span>Tỷ trọng lãi trên doanh thu:</span>
+                  <span class="font-bold text-ios-green">${itemMargin}%</span>
+                </div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div class="bg-ios-green h-full rounded-full transition-all duration-500" style="width: ${profitBarWidth}%"></div>
                 </div>
               </div>
             </div>
           `;
         });
       }
-
       html += `</div>`;
       container.innerHTML = html;
     }
