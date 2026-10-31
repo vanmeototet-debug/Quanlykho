@@ -127,7 +127,7 @@
     let openGroupedProductsMap = {};
     let selectedReportMonth = '';
 
-    // Hàm xử lý chính xác số thực (tránh lỗi 0.0099999999999999999)
+    // Hàm xử lý chính xác số thực (khắc phục lỗi floating point 0.00999999999)
     function cleanNum(num) {
       return Math.round((parseFloat(num) || 0) * 10000) / 10000;
     }
@@ -272,17 +272,21 @@
             <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập sản phẩm mới
           </h2>
           <form onsubmit="handleAddProduct(event)" class="space-y-3">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="col-span-2">
                 <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
-                <input type="text" id="p-name" required placeholder="Khoai mật, Bắp cải..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <input type="text" id="p-name" required placeholder="Bắp cải, Khoai mật..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
               <div>
-                <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
-                <input type="text" id="p-unit" required placeholder="kg, cây, quả..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <label class="block text-xs text-slate-500 mb-1">Tên/Số đợt</label>
+                <input type="text" id="p-batch" placeholder="Đợt 1, Đợt 2..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
+                <input type="text" id="p-unit" required placeholder="kg, cây..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Ngày nhập</label>
                 <input type="date" id="p-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
@@ -313,14 +317,14 @@
         </div>
 
         <div class="space-y-3 mb-6">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại theo sản phẩm</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại</h2>
           <div class="grid grid-cols-1 gap-2">
       `;
 
       if (db.products.length === 0) {
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
-        // Nhóm các sản phẩm theo Tên
+        // Gom nhóm sản phẩm cùng Tên
         let groupedProducts = {};
         db.products.forEach(p => {
           const key = p.name.trim();
@@ -341,26 +345,23 @@
                 <div>
                   <div class="flex items-center gap-2">
                     <span class="font-bold text-slate-900 text-sm">${group.name}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-ios-blue">${group.batches.length} lần nhập</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-ios-blue">${group.batches.length} đợt nhập</span>
                   </div>
-                  <p class="text-xs text-slate-500 mt-1">Tổng tồn: <b class="text-emerald-600 font-bold">${formatNum(group.totalStock)} ${group.unit}</b> | Tổng vốn: <b class="text-slate-700">${formatMoney(group.totalCost)}</b></p>
+                  <p class="text-xs text-slate-500 mt-1">Tổng tồn kho: <b class="text-emerald-600 font-bold">${formatNum(group.totalStock)} ${group.unit}</b> | Tổng vốn: <b class="text-slate-700">${formatMoney(group.totalCost)}</b></p>
                 </div>
                 <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
               </div>
               
               ${isOpen ? `
                 <div class="p-3 bg-slate-50/70 border-t border-slate-100 space-y-2">
-                  <p class="text-[11px] font-semibold text-slate-400 tracking-wider uppercase">Chi tiết từng lần nhập:</p>
                   ${group.batches.map(p => `
-                    <div class="bg-white rounded-xl p-3 shadow-2xs border border-slate-200/60 flex justify-between items-center text-xs">
+                    <div class="bg-white rounded-xl p-3 border border-slate-200/60 flex justify-between items-center text-xs">
                       <div>
-                        <div class="flex items-center gap-1.5">
-                          <span class="font-bold text-slate-800">Lần nhập ngày ${formatDateDisplay(p.date)}</span>
-                        </div>
-                        <p class="text-slate-500 mt-0.5">Tồn lần này: <b class="${cleanNum(p.currentStock) > 0 ? 'text-emerald-600' : 'text-slate-400'}">${formatNum(p.currentStock)} ${p.unit}</b> | Vốn: <b>${formatMoney(p.totalCost)}</b></p>
+                        <span class="font-bold text-slate-800">${p.name} (${p.batchName || 'Đợt 1'})</span>
+                        <p class="text-slate-500 mt-0.5">Tồn: <b class="${cleanNum(p.currentStock) > 0 ? 'text-emerald-600' : 'text-slate-400'}">${formatNum(p.currentStock)} ${p.unit}</b> | Vốn: <b>${formatMoney(p.totalCost)}</b></p>
                       </div>
                       <div class="text-right flex items-center gap-2">
-                        <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa lần nhập này">
+                        <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa đợt nhập này">
                           <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                       </div>
@@ -413,7 +414,7 @@
                     return `
                       <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
                         <div>
-                          <span class="font-bold text-slate-800 text-xs">${imp.productName}</span>
+                          <span class="font-bold text-slate-800 text-xs">${imp.productName} (${imp.batchName || 'Đợt 1'})</span>
                           <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(imp.qty)} ${imp.unit}</b></p>
                         </div>
                         <div class="text-right flex items-center gap-2.5">
@@ -445,6 +446,7 @@
     function handleAddProduct(e) {
       e.preventDefault();
       const name = document.getElementById('p-name').value.trim();
+      let batchInput = document.getElementById('p-batch').value.trim();
       const unit = document.getElementById('p-unit').value.trim();
       const date = document.getElementById('p-date').value;
       const importQty = cleanNum(document.getElementById('p-qty').value);
@@ -452,10 +454,17 @@
 
       if (importQty <= 0) { alert("Số lượng nhập phải lớn hơn 0!"); return; }
 
+      // Tự động tính số Đợt nếu người dùng không nhập
+      if (!batchInput) {
+        const existingCount = db.products.filter(p => p.name.trim().toLowerCase() === name.toLowerCase()).length;
+        batchInput = `Đợt ${existingCount + 1}`;
+      }
+
       const productId = 'P_' + Date.now();
       const newProduct = {
         id: productId,
         name,
+        batchName: batchInput,
         unit,
         currentStock: importQty,
         totalCost: totalImportCost,
@@ -471,6 +480,7 @@
         date,
         productId,
         productName: name,
+        batchName: batchInput,
         unit,
         qty: importQty,
         totalCost: totalImportCost
@@ -505,10 +515,10 @@
 
     function renderSales() {
       const container = document.getElementById('app-content');
-      // CHỈ HIỂN THỊ CÁC LẦN NHẬP CÓ TỒN KHO > 0
+      // Lọc chọn các sản phẩm có Tồn kho > 0
       let availableProducts = db.products.filter(p => cleanNum(p.currentStock) > 0);
       let productOptions = availableProducts.map(p => 
-        `<option value="${p.id}">${p.name} (Lần nhập ${formatDateDisplay(p.date)}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
+        `<option value="${p.id}">${p.name} (${p.batchName || 'Đợt 1'}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
       ).join('');
 
       let html = `
@@ -518,9 +528,9 @@
           </h2>
           <form onsubmit="handleAddSale(event)" class="space-y-3">
             <div>
-              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm & Lần Nhập (Tồn kho > 0)</label>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm & Đợt Nhập (Tồn > 0)</label>
               <select id="s-product-id" onchange="onSelectSaleProduct()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
-                <option value="">-- Chọn lần nhập sản phẩm --</option>
+                <option value="">-- Chọn đợt nhập sản phẩm --</option>
                 ${productOptions || '<option value="" disabled>-- Hết hàng trong kho --</option>'}
               </select>
             </div>
@@ -607,7 +617,7 @@
                     return `
                       <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
                         <div>
-                          <span class="font-bold text-slate-800 text-xs">${prod ? prod.name : 'Sản phẩm'} (${prod ? formatDateDisplay(prod.date) : ''})</span>
+                          <span class="font-bold text-slate-800 text-xs">${prod ? prod.name : 'Sản phẩm'} (${prod ? (prod.batchName || 'Đợt 1') : ''})</span>
                           <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod ? prod.unit : ''}</b></p>
                         </div>
                         <div class="text-right flex items-center gap-2.5">
@@ -726,7 +736,7 @@
       const container = document.getElementById('app-content');
       let availableProducts = db.products.filter(p => cleanNum(p.currentStock) > 0);
       let productOptions = availableProducts.map(p => 
-        `<option value="${p.id}">${p.name} (${formatDateDisplay(p.date)}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
+        `<option value="${p.id}">${p.name} (${p.batchName || 'Đợt 1'}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
       ).join('');
 
       let html = `
@@ -772,7 +782,7 @@
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${g.date}</span></div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'} (${prod ? (prod.batchName || 'Đợt 1') : ''})</span><span class="text-xs text-slate-400">${g.date}</span></div>
                 <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod ? prod.unit : ''}</b></p>
                 ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 Biếu: <b>${g.note}</b></p>` : ''}
               </div>
@@ -833,7 +843,7 @@
       const container = document.getElementById('app-content');
       let availableProducts = db.products.filter(p => cleanNum(p.currentStock) > 0);
       let productOptions = availableProducts.map(p => 
-        `<option value="${p.id}">${p.name} (${formatDateDisplay(p.date)}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
+        `<option value="${p.id}">${p.name} (${p.batchName || 'Đợt 1'}) - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`
       ).join('');
 
       let html = `
@@ -879,7 +889,7 @@
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
-                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${d.date}</span></div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'} (${prod ? (prod.batchName || 'Đợt 1') : ''})</span><span class="text-xs text-slate-400">${d.date}</span></div>
                 <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod ? prod.unit : ''}</b></p>
                 ${d.note ? `<p class="text-[11px] text-slate-400 mt-0.5">⚠️ Lý do: <b>${d.note}</b></p>` : ''}
               </div>
@@ -935,7 +945,7 @@
       }
     }
 
-    // 5. REPORTS TAB (Tính Lãi Lỗ Theo Từng Lần Nhập)
+    // 5. REPORTS TAB (Hiển thị Lãi Lỗ Theo Đợt Nhập)
     function renderReports() {
       const container = document.getElementById('app-content');
       
@@ -949,7 +959,7 @@
         selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
       }
 
-      // Lọc các giao dịch nhập và bán theo tháng được chọn
+      // Lọc theo tháng
       const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
       const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
 
@@ -962,35 +972,34 @@
       let totalWithdrawableProfit = 0;
       let profitDetails = [];
 
-      // Lấy danh sách các đợt nhập (Sản phẩm) thuộc tháng được chọn
       const productIdsInMonth = new Set();
       filteredImports.forEach(i => productIdsInMonth.add(i.productId));
       filteredSales.forEach(s => productIdsInMonth.add(s.productId));
 
       if (db.products) {
         db.products.forEach(p => {
-          // Chỉ xét các LẦN NHẬP có phát sinh giao dịch/nhập trong tháng
           if (!productIdsInMonth.has(p.id)) return;
 
           let totalCostP = cleanNum(p.totalCost);
           let totalRecoveredP = cleanNum(p.recoveredRevenue);
           let stock = cleanNum(p.currentStock);
+          let label = `${p.name} (${p.batchName || 'Đợt 1'})`;
 
           if (totalCostP === 0 && totalRecoveredP > 0) {
             let itemProfit = totalRecoveredP;
             totalWithdrawableProfit += itemProfit;
-            profitDetails.push({ text: `🟢 <b>${p.name} (${formatDateDisplay(p.date)})</b>: +${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${label}</b>: +${formatMoney(itemProfit)}` });
           } else if (totalRecoveredP >= totalCostP && totalCostP > 0) {
             let itemProfit = totalRecoveredP - totalCostP;
             totalWithdrawableProfit += itemProfit;
-            profitDetails.push({ text: `🟢 <b>${p.name} (${formatDateDisplay(p.date)})</b>: +${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${label}</b>: +${formatMoney(itemProfit)}` });
           } else if (stock === 0) {
             let itemLoss = totalCostP - totalRecoveredP;
             totalWithdrawableProfit -= itemLoss;
-            profitDetails.push({ text: `🔴 <b>${p.name} (${formatDateDisplay(p.date)})</b>: -${formatMoney(itemLoss)}` });
+            profitDetails.push({ text: `🔴 <b>${label}</b>: -${formatMoney(itemLoss)}` });
           } else {
             let remaining = Math.max(totalCostP - totalRecoveredP, 0);
-            profitDetails.push({ text: `🟡 <b>${p.name} (${formatDateDisplay(p.date)})</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})` });
+            profitDetails.push({ text: `🟡 <b>${label}</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})` });
           }
         });
       }
@@ -1021,7 +1030,7 @@
           </div>
           <div>
             <p class="text-3xl font-black">${formatMoney(totalWithdrawableProfit)}</p>
-            <p class="text-[11px] text-emerald-100 mt-0.5">Tổng tiền lãi sau khi bù trừ doanh thu và vốn các lần nhập</p>
+            <p class="text-[11px] text-emerald-100 mt-0.5">Tổng tiền lãi sau khi bù trừ doanh thu và vốn các đợt nhập</p>
           </div>
           <div class="bg-white/95 text-slate-800 rounded-xl p-3 space-y-1.5 mt-2">
             ${profitDetails.length > 0 ? profitDetails.map(d => `<p class="text-xs">${d.text}</p>`).join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu tháng này</p>'}
@@ -1051,9 +1060,9 @@
           </div>
         </div>
 
-        <!-- TRẠNG THÁI TỪNG LẦN NHẬP SẢN PHẨM -->
+        <!-- CHI TIẾT TỪNG ĐỢT NHẬP -->
         <div class="space-y-3">
-          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết theo từng Lần nhập (Lô hàng)</h2>
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Báo cáo chi tiết theo Đợt nhập</h2>
       `;
 
       if (!db.products || db.products.length === 0) {
@@ -1096,8 +1105,8 @@
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
               <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <div>
-                  <span class="font-bold text-slate-900 text-base">${p.name}</span>
-                  <span class="text-xs text-slate-500 block">Lần nhập: <b>${formatDateDisplay(p.date)}</b> | Tồn: <b>${formatNum(stock)} ${p.unit}</b></span>
+                  <span class="font-bold text-slate-900 text-base">${p.name} (${p.batchName || 'Đợt 1'})</span>
+                  <span class="text-xs text-slate-500 block">Tồn đợt này: <b>${formatNum(stock)} ${p.unit}</b></span>
                 </div>
                 <span class="text-xs font-bold px-2.5 py-1 rounded-full border ${badgeClass}">
                   ${badgeText}
