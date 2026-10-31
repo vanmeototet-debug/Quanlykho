@@ -49,6 +49,9 @@
     <div class="px-4 py-3 flex items-center justify-between">
       <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
       <div class="flex items-center gap-1">
+        <button onclick="fixOriginalStockData()" class="p-2 text-amber-600 hover:bg-slate-100 rounded-full transition-colors" title="Sửa chuẩn lại Lượng nhập ban đầu">
+          <i data-lucide="wrench" class="w-5 h-5"></i>
+        </button>
         <button onclick="toggleSheetModal(true)" class="p-2 text-ios-green hover:bg-slate-100 rounded-full transition-colors relative" title="Kết nối Google Sheets">
           <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
           <span id="sheet-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-slate-300 rounded-full"></span>
@@ -139,10 +142,9 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
-          // Đảm bảo dữ liệu cũ có đủ originalStock
-          db.products.forEach(p => {
-            if (!p.originalStock) p.originalStock = cleanNum(p.currentStock);
-          });
+          
+          // Tự động đối chiếu và sửa lại originalStock chuẩn theo Lịch sử nhập hàng
+          autoFixOriginalStock();
         } catch(e) { console.error(e); }
       }
       googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
@@ -151,6 +153,26 @@
         document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
         fetchFromGoogleSheet();
       }
+    }
+
+    // Hàm tự động chuẩn hóa lại Lượng nhập ban đầu theo đúng Lịch sử nhập gốc
+    function autoFixOriginalStock() {
+      if (!db.products || !db.imports) return;
+      db.products.forEach(p => {
+        const imp = db.imports.find(i => i.productId === p.id);
+        if (imp && imp.qty > 0) {
+          p.originalStock = cleanNum(imp.qty);
+        } else if (!p.originalStock) {
+          p.originalStock = cleanNum(p.currentStock);
+        }
+      });
+    }
+
+    function fixOriginalStockData() {
+      autoFixOriginalStock();
+      saveDB();
+      switchTab(currentTab);
+      alert("Đã khớp nối chuẩn lại Lượng nhập ban đầu từ Lịch sử nhập hàng gốc!");
     }
 
     function saveDB() {
@@ -194,9 +216,7 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
-          db.products.forEach(p => {
-            if (!p.originalStock) p.originalStock = cleanNum(p.currentStock);
-          });
+          autoFixOriginalStock();
           localStorage.setItem('app_inventory_db', JSON.stringify(db));
           switchTab(currentTab);
         }
@@ -316,7 +336,6 @@
           </form>
         </div>
 
-        <!-- HIỂN THỊ KHO HÀNG THEO CẤU TRÚC SẢN PHẨM -> XUỐNG DÒNG CÁC ĐỢT NHẬP CÓ TỔNG NHẬP VÀ TỒN -->
         <div class="space-y-3 mb-6">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại</h2>
           <div class="grid grid-cols-1 gap-3">
@@ -351,24 +370,27 @@
               </div>
 
               <div class="space-y-2">
-                ${group.batches.map(p => `
-                  <div class="bg-slate-50/80 rounded-xl p-2.5 flex justify-between items-center border border-slate-100 text-xs">
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <span class="font-bold text-slate-800">➔ ${p.batchName || 'Đợt 1'}</span>
-                        <span class="text-[10px] text-slate-400">(${formatDateDisplay(p.date)})</span>
+                ${group.batches.map(p => {
+                  const origStock = cleanNum(p.originalStock || p.currentStock);
+                  return `
+                    <div class="bg-slate-50/80 rounded-xl p-2.5 flex justify-between items-center border border-slate-100 text-xs">
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold text-slate-800">➔ ${p.batchName || 'Đợt 1'}</span>
+                          <span class="text-[10px] text-slate-400">(${formatDateDisplay(p.date)})</span>
+                        </div>
+                        <p class="text-slate-500 mt-1">
+                          Nhập ban đầu: <b class="text-slate-800 font-semibold">${formatNum(origStock)} ${p.unit}</b> | 
+                          Tồn: <b class="${cleanNum(p.currentStock) > 0 ? 'text-emerald-600' : 'text-slate-400'} font-bold">${formatNum(p.currentStock)} ${p.unit}</b> | 
+                          Vốn: <b class="text-slate-700 font-semibold">${formatMoney(p.totalCost)}</b>
+                        </p>
                       </div>
-                      <p class="text-slate-500 mt-1">
-                        Nhập ban đầu: <b class="text-slate-800 font-semibold">${formatNum(p.originalStock || p.currentStock)} ${p.unit}</b> | 
-                        Tồn: <b class="${cleanNum(p.currentStock) > 0 ? 'text-emerald-600' : 'text-slate-400'} font-bold">${formatNum(p.currentStock)} ${p.unit}</b> | 
-                        Vốn: <b class="text-slate-700 font-semibold">${formatMoney(p.totalCost)}</b>
-                      </p>
+                      <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1.5" title="Xóa đợt nhập này">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
                     </div>
-                    <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1.5" title="Xóa đợt nhập này">
-                      <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
-                  </div>
-                `).join('')}
+                  `;
+                }).join('')}
               </div>
             </div>
           `;
@@ -467,7 +489,7 @@
         batchName: batchInput,
         unit,
         currentStock: importQty,
-        originalStock: importQty,
+        originalStock: importQty, // Khóa cố định Lượng nhập ban đầu
         totalCost: totalImportCost,
         date,
         recoveredRevenue: 0
@@ -682,10 +704,10 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng bán (${formatNum(qty)}) vượt quá tồn kho hiện tại (${formatNum(currentStockClean)} ${prod.unit}). Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = currentStockClean;
-      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
+      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock || prod.currentStock);
       let totalCostCalculated = qty * unitCost;
 
+      // CHỈ GIẢM CURRENTSTOCK, GIỮ NGUYÊN ORIGINALSTOCK
       prod.currentStock = cleanNum(prod.currentStock - qty);
       prod.recoveredRevenue = cleanNum((prod.recoveredRevenue || 0) + totalRevenue);
 
@@ -811,8 +833,7 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = currentStockClean;
-      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
+      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock || prod.currentStock);
       const costValue = qty * unitCost;
 
       prod.currentStock = cleanNum(prod.currentStock - qty);
@@ -918,8 +939,7 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = currentStockClean;
-      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
+      let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock || prod.currentStock);
       const costValue = qty * unitCost;
 
       prod.currentStock = cleanNum(prod.currentStock - qty);
@@ -1074,7 +1094,7 @@
           </div>
         </div>
 
-        <!-- BÁO CÁO CHI TIẾT TỪNG ĐỢT NHẬP (CÓ TỔNG NHẬP VÀ TỒN) -->
+        <!-- BÁO CÁO CHI TIẾT TỪNG ĐỢT NHẬP -->
         <div class="space-y-3">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết theo từng Đợt nhập</h2>
       `;
@@ -1144,8 +1164,8 @@
                       </div>
                       <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200/50">
                         <div>
-                          <p>Nhập: <b class="text-slate-800">${formatNum(original)} ${p.unit}</b> | Tồn: <b class="text-slate-800">${formatNum(stock)} ${p.unit}</b></p>
-                          <p>Vốn: <b class="text-slate-800">${formatMoney(totalCostP)}</b> | Thu: <b class="text-ios-blue">${formatMoney(totalRecoveredP)}</b></p>
+                          <p>Nhập ban đầu: <b class="text-slate-800">${formatNum(original)} ${p.unit}</b> | Tồn: <b class="text-slate-800">${formatNum(stock)} ${p.unit}</b></p>
+                          <p>Vốn đợt này: <b class="text-slate-800">${formatMoney(totalCostP)}</b> | Doanh thu: <b class="text-ios-blue">${formatMoney(totalRecoveredP)}</b></p>
                         </div>
                         <div class="text-right flex flex-col justify-center">
                           <span class="text-[10px] text-slate-400 block">Lãi/Lỗ đợt này:</span>
