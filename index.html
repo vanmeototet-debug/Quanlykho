@@ -36,6 +36,7 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .batch-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .hint-box { background: #f8fafc; border: 1px dashed var(--border); padding: 8px; border-radius: 6px; font-size: 0.85rem; color: #475569; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -57,12 +58,23 @@
         </div>
         <div class="form-group">
           <label>Số lượng nhập</label>
-          <input type="number" id="inp-qty" placeholder="0">
+          <input type="number" id="inp-qty" placeholder="0" oninput="calculateImportHint()">
         </div>
         <div class="form-group">
-          <label>Giá vốn / 1 đơn vị (Đồng)</label>
-          <input type="number" id="inp-cost" placeholder="0">
+          <label>Đơn vị tính</label>
+          <input type="text" id="inp-unit" placeholder="Ví dụ: kg, thùng, sọt...">
         </div>
+        <div class="form-group">
+          <label>Tổng giá vốn cả lần nhập (Đồng)</label>
+          <input type="number" id="inp-total-cost" placeholder="0" oninput="calculateImportHint()">
+        </div>
+        
+        <!-- Khung tự động tính toán gợi ý -->
+        <div class="hint-box" id="import-hint" style="display:none;">
+          <div>• Giá vốn / 1 đơn vị: <b id="hint-unit-cost">0</b> đ</div>
+          <div>• Giá bán gợi ý (Lãi tối thiểu 50%): <b id="hint-min-price" style="color:var(--success);">0</b> đ</div>
+        </div>
+
         <button onclick="addImport()">Lưu nhập hàng</button>
       </div>
     </section>
@@ -88,8 +100,8 @@
           <input type="number" id="sale-qty" placeholder="0">
         </div>
         <div class="form-group">
-          <label>Giá bán / 1 đơn vị (Đồng)</label>
-          <input type="number" id="sale-price" placeholder="0">
+          <label>Tổng giá bán đơn hàng này (Đồng)</label>
+          <input type="number" id="sale-total-price" placeholder="0">
         </div>
         <button onclick="addSale()">Xác nhận bán</button>
       </div>
@@ -146,7 +158,7 @@
     </section>
   </div>
 
-  <!-- thanh ĐIỀU HƯỚNG BOTTOM NAV -->
+  <!-- THANH ĐIỀU HƯỚNG BOTTOM NAV -->
   <nav>
     <button class="active" onclick="switchTab('tab-product', this)">Nhập hàng</button>
     <button onclick="switchTab('tab-inventory', this)">Tồn kho</button>
@@ -159,8 +171,8 @@
   <script>
     // Dữ liệu bộ nhớ tạm LocalStorage
     let db = JSON.parse(localStorage.getItem('STORE_DB')) || {
-      imports: [], // { id, name, keyName, batch, qty, cost }
-      sales: [],   // { importId, qty, price }
+      imports: [], // { id, name, keyName, batch, qty, unit, totalCost, costPerUnit }
+      sales: [],   // { importId, qty, totalPrice }
       gifts: [],   // { importId, qty }
       damages: []  // { importId, qty }
     };
@@ -175,12 +187,29 @@
       document.getElementById(tabId).classList.add('active');
       btn.classList.add('active');
 
-      // Refresh dữ liệu tương ứng khi chuyển tab
       if (tabId === 'tab-inventory') renderInventory();
       if (tabId === 'tab-sale') populateDropdown('sale-select');
       if (tabId === 'tab-gift') { populateDropdown('gift-select'); renderGiftSummary(); }
       if (tabId === 'tab-damage') { populateDropdown('damage-select'); renderDamageSummary(); }
       if (tabId === 'tab-report') renderReport();
+    }
+
+    // TÍNH TOÁN GỢI Ý KHI NHẬP HÀNG
+    function calculateImportHint() {
+      const qty = parseFloat(document.getElementById('inp-qty').value) || 0;
+      const totalCost = parseFloat(document.getElementById('inp-total-cost').value) || 0;
+      const hintBox = document.getElementById('import-hint');
+
+      if (qty > 0 && totalCost > 0) {
+        const unitCost = totalCost / qty;
+        const minPrice = unitCost * 1.5; // Lãi tối thiểu 50%
+
+        document.getElementById('hint-unit-cost').innerText = unitCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+        document.getElementById('hint-min-price').innerText = minPrice.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+        hintBox.style.display = 'block';
+      } else {
+        hintBox.style.display = 'none';
+      }
     }
 
     // TÍNH TỒN KHO THEO TỪNG LÔ NHẬP
@@ -199,9 +228,15 @@
       const name = document.getElementById('inp-name').value.trim();
       const batch = document.getElementById('inp-batch').value.trim() || 'Lần 1';
       const qty = parseFloat(document.getElementById('inp-qty').value) || 0;
-      const cost = parseFloat(document.getElementById('inp-cost').value) || 0;
+      const unit = document.getElementById('inp-unit').value.trim() || 'đơn vị';
+      const totalCost = parseFloat(document.getElementById('inp-total-cost').value) || 0;
 
-      if (!name || qty <= 0) { alert('Vui lòng điền đúng tên sản phẩm và số lượng!'); return; }
+      if (!name || qty <= 0 || totalCost <= 0) { 
+        alert('Vui lòng điền đầy đủ tên, số lượng và tổng giá vốn!'); 
+        return; 
+      }
+
+      const costPerUnit = totalCost / qty;
 
       db.imports.push({
         id: Date.now().toString(),
@@ -209,14 +244,21 @@
         keyName: name.toLowerCase(),
         batch: batch,
         qty: qty,
-        cost: cost
+        unit: unit,
+        totalCost: totalCost,
+        costPerUnit: costPerUnit
       });
+      
       saveData();
-      alert('Đã thêm sản phẩm nhập kho thành công!');
+      alert('Đã lưu nhập hàng thành công!');
+      
+      // Reset form
       document.getElementById('inp-name').value = '';
       document.getElementById('inp-batch').value = '';
       document.getElementById('inp-qty').value = '';
-      document.getElementById('inp-cost').value = '';
+      document.getElementById('inp-unit').value = '';
+      document.getElementById('inp-total-cost').value = '';
+      document.getElementById('import-hint').style.display = 'none';
     }
 
     // TAB 2: KHO HIỆN TẠI GOM THEO TÊN
@@ -241,8 +283,8 @@
         group.batches.forEach(b => {
           html += `<tr>
             <td><span class="batch-tag">${b.batch}</span></td>
-            <td>${b.qty}</td>
-            <td><b>${b.stock}</b></td>
+            <td>${b.qty} ${b.unit}</td>
+            <td><b>${b.stock}</b> ${b.unit}</td>
           </tr>`;
         });
         html += `</table></div>`;
@@ -256,7 +298,7 @@
       const select = document.getElementById(selectId);
       select.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
       items.forEach(item => {
-        select.innerHTML += `<option value="${item.id}">${item.name} (${item.batch}) - Tồn: ${item.stock}</option>`;
+        select.innerHTML += `<option value="${item.id}">${item.name} (${item.batch}) - Tồn: ${item.stock} ${item.unit}</option>`;
       });
     }
 
@@ -264,17 +306,20 @@
     function addSale() {
       const importId = document.getElementById('sale-select').value;
       const qty = parseFloat(document.getElementById('sale-qty').value) || 0;
-      const price = parseFloat(document.getElementById('sale-price').value) || 0;
+      const totalPrice = parseFloat(document.getElementById('sale-total-price').value) || 0;
 
       if (!importId) { alert('Vui lòng chọn sản phẩm!'); return; }
       const item = getStockDetails().find(i => i.id === importId);
-      if (qty <= 0 || qty > item.stock) { alert('Số lượng bán không hợp lệ hoặc vượt quá tồn kho!'); return; }
+      if (qty <= 0 || qty > item.stock || totalPrice <= 0) { 
+        alert('Số lượng bán hoặc tổng giá bán không hợp lệ / vượt quá tồn kho!'); 
+        return; 
+      }
 
-      db.sales.push({ importId, qty, price });
+      db.sales.push({ importId, qty, totalPrice });
       saveData();
       alert('Đã tạo đơn bán thành công!');
       document.getElementById('sale-qty').value = '';
-      document.getElementById('sale-price').value = '';
+      document.getElementById('sale-total-price').value = '';
       populateDropdown('sale-select');
     }
 
@@ -299,14 +344,14 @@
       const items = getStockDetails();
       const summary = {};
       items.forEach(item => {
-        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0 };
+        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0, unit: item.unit };
         summary[item.keyName].total += item.totalGift;
       });
 
       let html = '<table><tr><th>Tên sản phẩm</th><th>Tổng biếu tặng</th></tr>';
       for (let k in summary) {
         if (summary[k].total > 0) {
-          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total}</td></tr>`;
+          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total} ${summary[k].unit}</td></tr>`;
         }
       }
       html += '</table>';
@@ -334,14 +379,14 @@
       const items = getStockDetails();
       const summary = {};
       items.forEach(item => {
-        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0 };
+        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0, unit: item.unit };
         summary[item.keyName].total += item.totalDamage;
       });
 
       let html = '<table><tr><th>Tên sản phẩm</th><th>Tổng hư hỏng</th></tr>';
       for (let k in summary) {
         if (summary[k].total > 0) {
-          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total}</td></tr>`;
+          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total} ${summary[k].unit}</td></tr>`;
         }
       }
       html += '</table>';
@@ -355,12 +400,12 @@
 
       items.forEach(item => {
         const itemSales = db.sales.filter(s => s.importId === item.id);
-        const revenue = itemSales.reduce((sum, s) => sum + (s.qty * s.price), 0);
-        const costVal = item.totalSold * item.cost;
+        const revenue = itemSales.reduce((sum, s) => sum + s.totalPrice, 0);
+        const costVal = item.totalSold * item.costPerUnit;
         const profit = revenue - costVal;
 
         if (!grouped[item.keyName]) {
-          grouped[item.keyName] = { displayName: item.name, batches: [], totalRev: 0, totalProfit: 0 };
+          grouped[item.keyName] = { displayName: item.name, unit: item.unit, batches: [], totalRev: 0, totalProfit: 0 };
         }
 
         grouped[item.keyName].batches.push({
@@ -385,7 +430,7 @@
           const pClass = b.profit >= 0 ? 'profit-pos' : 'profit-neg';
           html += `<tr>
             <td><span class="batch-tag">${b.batch}</span></td>
-            <td>${b.sold}</td>
+            <td>${b.sold} ${group.unit}</td>
             <td>${b.revenue.toLocaleString()}đ</td>
             <td class="${pClass}">${b.profit.toLocaleString()}đ</td>
           </tr>`;
