@@ -1,451 +1,1205 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full bg-slate-100">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quản lý Sản phẩm & Tồn kho</title>
-  <style>
-    :root {
-      --primary: #2563eb;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #1e293b;
-      --border: #e2e8f0;
-      --success: #16a34a;
-      --danger: #dc2626;
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Quản lý Bán hàng & Tồn kho</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ios: {
+              blue: '#007AFF',
+              green: '#34C759',
+              red: '#FF3B30',
+              orange: '#FF9500',
+              pink: '#FF2D55',
+              gray: '#8E8E93',
+              bg: '#F2F2F7',
+              card: '#FFFFFF'
+            }
+          }
+        }
+      }
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding-bottom: 70px; }
-    header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; position: sticky; top: 0; z-index: 100; }
-    .container { max-width: 800px; margin: 15px auto; padding: 0 10px; }
-    .card { background: var(--card); border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); }
-    h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 5px; }
-    .form-group { margin-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
-    input, select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; outline: none; }
-    button { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.95rem; cursor: pointer; margin-top: 5px; }
-    button:active { opacity: 0.9; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-    th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
-    th { background: #f1f5f9; font-weight: 600; }
-    .profit-pos { color: var(--success); font-weight: bold; }
-    .profit-neg { color: var(--danger); font-weight: bold; }
-    nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid var(--border); }
-    nav button { flex: 1; background: transparent; color: #64748b; border: none; padding: 8px 2px; font-size: 0.75rem; border-radius: 0; margin: 0; }
-    nav button.active { color: var(--primary); font-weight: bold; border-top: 3px solid var(--primary); }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .batch-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .hint-box { background: #f8fafc; border: 1px dashed var(--border); padding: 8px; border-radius: 6px; font-size: 0.85rem; color: #475569; margin-top: 5px; }
+  </script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, select, textarea {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    .pt-safe { padding-top: env(safe-area-inset-top); }
   </style>
 </head>
-<body>
+<body class="h-full font-sans antialiased text-slate-800 flex flex-col bg-ios-bg">
 
-  <header>Sản phẩm &amp; Tồn kho</header>
-
-  <div class="container">
-    <!-- TAB 1: NHẬP SẢN PHẨM -->
-    <section id="tab-product" class="tab-content active">
-      <div class="card">
-        <h2>Nhập sản phẩm mới</h2>
-        <div class="form-group">
-          <label>Tên sản phẩm</label>
-          <input type="text" id="inp-name" placeholder="Ví dụ: Bắp cải">
-        </div>
-        <div class="form-group">
-          <label>Lần nhập</label>
-          <input type="text" id="inp-batch" placeholder="Ví dụ: Lần 1, Lần 2...">
-        </div>
-        <div class="form-group">
-          <label>Số lượng nhập</label>
-          <input type="number" id="inp-qty" placeholder="0" oninput="calculateImportHint()">
-        </div>
-        <div class="form-group">
-          <label>Đơn vị tính</label>
-          <input type="text" id="inp-unit" placeholder="Ví dụ: kg, thùng, sọt...">
-        </div>
-        <div class="form-group">
-          <label>Tổng giá vốn cả lần nhập (Đồng)</label>
-          <input type="number" id="inp-total-cost" placeholder="0" oninput="calculateImportHint()">
-        </div>
-        
-        <!-- Khung tự động tính toán gợi ý -->
-        <div class="hint-box" id="import-hint" style="display:none;">
-          <div>• Giá vốn / 1 đơn vị: <b id="hint-unit-cost">0</b> đ</div>
-          <div>• Giá bán gợi ý (Lãi tối thiểu 50%): <b id="hint-min-price" style="color:var(--success);">0</b> đ</div>
-        </div>
-
-        <button onclick="addImport()">Lưu nhập hàng</button>
+  <!-- Header -->
+  <header class="bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm & Tồn kho</h1>
+      <div class="flex items-center gap-1">
+        <button onclick="toggleSheetModal(true)" class="p-2 text-ios-green hover:bg-slate-100 rounded-full transition-colors relative" title="Kết nối Google Sheets">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+          <span id="sheet-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-slate-300 rounded-full"></span>
+        </button>
+        <button onclick="exportData()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors" title="Xuất file JSON dự phòng">
+          <i data-lucide="download" class="w-4 h-4"></i>
+        </button>
       </div>
-    </section>
+    </div>
+  </header>
 
-    <!-- TAB 2: KHO HIỆN TẠI -->
-    <section id="tab-inventory" class="tab-content">
-      <div class="card">
-        <h2>Tồn kho hiện tại (Gom theo tên)</h2>
-        <div id="inventory-list"></div>
+  <!-- Modal Cài đặt Google Sheets -->
+  <div id="sheet-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5 text-ios-green"></i> Google Sheets Online
+        </h3>
+        <button onclick="toggleSheetModal(false)" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
-    </section>
-
-    <!-- TAB 3: BÁN HÀNG -->
-    <section id="tab-sale" class="tab-content">
-      <div class="card">
-        <h2>Tạo đơn bán hàng</h2>
-        <div class="form-group">
-          <label>Chọn sản phẩm (Còn tồn kho)</label>
-          <select id="sale-select"></select>
-        </div>
-        <div class="form-group">
-          <label>Số lượng bán</label>
-          <input type="number" id="sale-qty" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label>Tổng giá bán đơn hàng này (Đồng)</label>
-          <input type="number" id="sale-total-price" placeholder="0">
-        </div>
-        <button onclick="addSale()">Xác nhận bán</button>
+      <p class="text-xs text-slate-500">
+        Dán đường link <b>Apps Script Web App URL</b> từ Google Sheet của bạn vào đây để đồng bộ tự động online.
+      </p>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Google Web App URL</label>
+        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
       </div>
-    </section>
-
-    <!-- TAB 4: BIẾU TẶNG -->
-    <section id="tab-gift" class="tab-content">
-      <div class="card">
-        <h2>Xuất Biếu tặng</h2>
-        <div class="form-group">
-          <label>Chọn sản phẩm (Còn tồn kho)</label>
-          <select id="gift-select"></select>
-        </div>
-        <div class="form-group">
-          <label>Số lượng biếu tặng</label>
-          <input type="number" id="gift-qty" placeholder="0">
-        </div>
-        <button onclick="addGift()">Xác nhận biếu tặng</button>
+      <div class="pt-2 space-y-2">
+        <button onclick="saveSheetUrl()" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:opacity-90">
+          <i data-lucide="check" class="w-4 h-4"></i> Lưu & Đồng bộ ngay
+        </button>
+        <button onclick="toggleSheetModal(false)" class="w-full bg-slate-100 text-slate-700 font-medium py-2.5 rounded-xl text-xs">
+          Đóng
+        </button>
       </div>
-
-      <div class="card">
-        <h2>Tổng hợp Biếu tặng (Theo tên)</h2>
-        <div id="gift-summary"></div>
-      </div>
-    </section>
-
-    <!-- TAB 5: HƯ HỎNG -->
-    <section id="tab-damage" class="tab-content">
-      <div class="card">
-        <h2>Báo Hư hỏng / Tỉa bỏ</h2>
-        <div class="form-group">
-          <label>Chọn sản phẩm (Còn tồn kho)</label>
-          <select id="damage-select"></select>
-        </div>
-        <div class="form-group">
-          <label>Số lượng hư hỏng</label>
-          <input type="number" id="damage-qty" placeholder="0">
-        </div>
-        <button onclick="addDamage()">Xác nhận báo hỏng</button>
-      </div>
-
-      <div class="card">
-        <h2>Tổng hợp Hư hỏng (Theo tên)</h2>
-        <div id="damage-summary"></div>
-      </div>
-    </section>
-
-    <!-- TAB 6: BÁO CÁO CHI TIẾT -->
-    <section id="tab-report" class="tab-content">
-      <div class="card">
-        <h2>Báo cáo Doanh thu &amp; Lãi lỗ</h2>
-        <div id="report-view"></div>
-      </div>
-    </section>
+    </div>
   </div>
 
-  <!-- THANH ĐIỀU HƯỚNG BOTTOM NAV -->
-  <nav>
-    <button class="active" onclick="switchTab('tab-product', this)">Nhập hàng</button>
-    <button onclick="switchTab('tab-inventory', this)">Tồn kho</button>
-    <button onclick="switchTab('tab-sale', this)">Bán hàng</button>
-    <button onclick="switchTab('tab-gift', this)">Biếu tặng</button>
-    <button onclick="switchTab('tab-damage', this)">Hư hỏng</button>
-    <button onclick="switchTab('tab-report', this)">Báo cáo</button>
+  <!-- Main Content Area -->
+  <main class="flex-1 overflow-y-auto p-4 pb-24" id="app-content"></main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 pb-safe">
+    <div class="flex justify-around items-center h-16 px-1">
+      <button onclick="switchTab('products')" id="nav-products" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="package" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Sản phẩm</span>
+      </button>
+      <button onclick="switchTab('sales')" id="nav-sales" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Bán hàng</span>
+      </button>
+      <button onclick="switchTab('giveaways')" id="nav-giveaways" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="gift" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Biếu tặng</span>
+      </button>
+      <button onclick="switchTab('damaged')" id="nav-damaged" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Hư hỏng</span>
+      </button>
+      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
+        <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Báo cáo</span>
+      </button>
+    </div>
   </nav>
 
+  <!-- JS Logic -->
   <script>
-    // Dữ liệu bộ nhớ tạm LocalStorage
-    let db = JSON.parse(localStorage.getItem('STORE_DB')) || {
-      imports: [], // { id, name, keyName, batch, qty, unit, totalCost, costPerUnit }
-      sales: [],   // { importId, qty, totalPrice }
-      gifts: [],   // { importId, qty }
-      damages: []  // { importId, qty }
-    };
+    let db = { products: [], imports: [], sales: [], giveaways: [], damaged: [] };
+    let googleSheetUrl = '';
+    let openDailySalesMap = {};
+    let openDailyImportsMap = {};
+    let selectedReportMonth = '';
 
-    function saveData() {
-      localStorage.setItem('STORE_DB', JSON.stringify(db));
+    function loadDB() {
+      const stored = localStorage.getItem('app_inventory_db');
+      if (stored) {
+        try {
+          db = JSON.parse(stored);
+          if (!db.imports) db.imports = [];
+          if (!db.giveaways) db.giveaways = [];
+          if (!db.damaged) db.damaged = [];
+          
+          // Rebuild batches from imports if missing or out of sync
+          if (db.products) {
+            db.products.forEach(p => {
+              let matchedImports = db.imports.filter(i => i.productId === p.id);
+              if (matchedImports.length > 0 && (!p.batches || p.batches.length === 0)) {
+                p.batches = matchedImports.map(imp => ({
+                  batchId: imp.id,
+                  date: imp.date,
+                  qty: imp.qty,
+                  originalQty: imp.qty,
+                  cost: imp.totalCost,
+                  recoveredRevenue: 0
+                }));
+              }
+            });
+          }
+        } catch(e) { console.error(e); }
+      }
+      googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
+      if (googleSheetUrl) {
+        document.getElementById('sheet-url-input').value = googleSheetUrl;
+        document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+        fetchFromGoogleSheet();
+      }
     }
 
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
-
-      if (tabId === 'tab-inventory') renderInventory();
-      if (tabId === 'tab-sale') populateDropdown('sale-select');
-      if (tabId === 'tab-gift') { populateDropdown('gift-select'); renderGiftSummary(); }
-      if (tabId === 'tab-damage') { populateDropdown('damage-select'); renderDamageSummary(); }
-      if (tabId === 'tab-report') renderReport();
+    function saveDB() {
+      localStorage.setItem('app_inventory_db', JSON.stringify(db));
+      syncToGoogleSheet();
     }
 
-    // TÍNH TOÁN GỢI Ý KHI NHẬP HÀNG
-    function calculateImportHint() {
-      const qty = parseFloat(document.getElementById('inp-qty').value) || 0;
-      const totalCost = parseFloat(document.getElementById('inp-total-cost').value) || 0;
-      const hintBox = document.getElementById('import-hint');
+    function syncToGoogleSheet() {
+      if (!googleSheetUrl) return;
+      let form = document.getElementById('hidden-sync-form');
+      if (!form) {
+        form = document.createElement('form');
+        form.id = 'hidden-sync-form';
+        form.method = 'POST';
+        form.action = googleSheetUrl;
+        form.target = 'hidden-iframe';
+        form.style.display = 'none';
+        let input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.id = 'hidden-sync-payload';
+        form.appendChild(input);
+        let iframe = document.createElement('iframe');
+        iframe.name = 'hidden-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
+      }
+      document.getElementById('hidden-sync-payload').value = JSON.stringify(db);
+      form.submit();
+    }
 
-      if (qty > 0 && totalCost > 0) {
-        const unitCost = totalCost / qty;
-        const minPrice = unitCost * 1.5; // Lãi tối thiểu 50%
+    function fetchFromGoogleSheet() {
+      if (!googleSheetUrl) return;
+      const scriptId = 'jsonp-script';
+      let oldScript = document.getElementById(scriptId);
+      if (oldScript) oldScript.remove();
+      window.handleSheetData = function(data) {
+        if (data && data.products) {
+          db = data;
+          if (!db.imports) db.imports = [];
+          if (!db.giveaways) db.giveaways = [];
+          if (!db.damaged) db.damaged = [];
+          localStorage.setItem('app_inventory_db', JSON.stringify(db));
+          switchTab(currentTab);
+        }
+      };
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = googleSheetUrl + (googleSheetUrl.includes('?') ? '&' : '?') + 'callback=handleSheetData&t=' + Date.now();
+      document.body.appendChild(script);
+    }
 
-        document.getElementById('hint-unit-cost').innerText = unitCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
-        document.getElementById('hint-min-price').innerText = minPrice.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
-        hintBox.style.display = 'block';
+    function saveSheetUrl() {
+      const url = document.getElementById('sheet-url-input').value.trim();
+      if (!url) { alert("Vui lòng nhập đường link Web App URL!"); return; }
+      googleSheetUrl = url;
+      localStorage.setItem('app_google_sheet_url', googleSheetUrl);
+      document.getElementById('sheet-dot').className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+      fetchFromGoogleSheet();
+      alert("Đã kết nối thành công với Google Sheets!");
+      toggleSheetModal(false);
+    }
+
+    function formatMoney(num) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+    }
+    function formatNum(num) { return new Intl.NumberFormat('vi-VN').format(num || 0); }
+    function getTodayString() {
+      const today = new Date();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      return parts.length === 3 ? `Ngày ${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+    }
+    function toggleSheetModal(show) {
+      const modal = document.getElementById('sheet-modal');
+      if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+      lucide.createIcons();
+    }
+
+    let currentTab = 'products';
+    function switchTab(tab) {
+      currentTab = tab;
+      ['products', 'sales', 'giveaways', 'damaged', 'reports'].forEach(t => {
+        const btn = document.getElementById(`nav-${t}`);
+        if (btn) {
+          btn.className = t === tab ? 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue' : 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
+        }
+      });
+      const titleEl = document.getElementById('page-title');
+      if (tab === 'products') { if (titleEl) titleEl.innerText = 'Sản phẩm & Tồn kho'; renderProducts(); }
+      else if (tab === 'sales') { if (titleEl) titleEl.innerText = 'Nhật ký Bán hàng'; renderSales(); }
+      else if (tab === 'giveaways') { if (titleEl) titleEl.innerText = 'Quản lý Biếu tặng'; renderGiveaways(); }
+      else if (tab === 'damaged') { if (titleEl) titleEl.innerText = 'Quản lý Hư hỏng'; renderDamaged(); }
+      else if (tab === 'reports') { if (titleEl) titleEl.innerText = 'Báo cáo & Phân tích'; renderReports(); }
+      lucide.createIcons();
+    }
+
+    // 1. PRODUCTS TAB
+    function toggleDailyImportsGroup(dateKey) {
+      openDailyImportsMap[dateKey] = !openDailyImportsMap[dateKey];
+      renderProducts();
+      lucide.createIcons();
+    }
+
+    function renderProducts() {
+      const container = document.getElementById('app-content');
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập thêm sản phẩm
+            <i data-lucide="plus-circle" class="w-5 h-5 mr-2 text-ios-blue"></i> Thêm / Nhập sản phẩm mới
+          </h2>
+          <form onsubmit="handleAddProduct(event)" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm</label>
+                <input type="text" id="p-name" required placeholder="Khoai mật, Củ cải..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <label class="block text-xs text-slate-500 mb-1">Tên sản phẩm (Đợt nhập)</label>
+                <input type="text" id="p-name" required placeholder="Bắp cải (Đợt 1)..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
+                <input type="text" id="p-unit" required placeholder="kg, cây, quả..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày nhập</label>
+                <input type="date" id="p-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng nhập</label>
+                <input type="number" step="any" id="p-qty" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Tổng giá nhập đợt này (VND)</label>
+              <input type="number" id="p-total-cost" oninput="calcProductPrices()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+            <div class="bg-blue-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-blue-100 text-xs">
+              <div>
+                <span class="text-slate-500 block">Giá nhập TB / ĐVT:</span>
+                <span id="p-avg-cost-preview" class="font-bold text-slate-800">0 đ</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Gợi ý giá bán (>50% lãi):</span>
+                <span id="p-min-price-preview" class="font-bold text-ios-green">0 đ</span>
+              </div>
+            </div>
+            <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Lưu / Cộng Dồn Sản Phẩm
+              Lưu Sản Phẩm Mới
+            </button>
+          </form>
+        </div>
+        <div class="space-y-3 mb-6">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại (${db.products.length} sản phẩm)</h2>
+          <div class="grid grid-cols-1 gap-2">
+      `;
+
+      if (db.products.length === 0) {
+        html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
-        hintBox.style.display = 'none';
+        db.products.forEach(p => {
+          const batchCount = p.batches ? p.batches.length : 1;
+          html += `
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex justify-between items-center text-xs">
+              <div>
+                <span class="font-bold text-slate-900 text-sm">${p.name}</span>
+                <p class="text-slate-500 mt-0.5">Số lô nhập: <b class="text-slate-700">${batchCount} đợt</b> | Tồn: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b></p>
+                <p class="text-slate-500 mt-0.5">Tồn kho: <b class="text-emerald-600">${formatNum(p.currentStock)} ${p.unit}</b> | Vốn: <b class="text-slate-700">${formatMoney(p.totalCost)}</b></p>
+              </div>
+              <div class="text-right flex items-center gap-2">
+                <button onclick="deleteProduct('${p.id}')" class="text-slate-300 hover:text-ios-red p-1" title="Xóa sản phẩm">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
       }
+      html += `</div></div><div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Nhật ký nhập hàng theo ngày</h2>`;
+
+      const validImports = db.imports || [];
+      if (validImports.length === 0) {
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="package-plus" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có lịch sử nhập hàng</p></div>`;
+      } else {
+        let dailyImportMap = {};
+        validImports.forEach(imp => {
+          const dateKey = imp.date || 'Chưa rõ ngày';
+          if (!dailyImportMap[dateKey]) dailyImportMap[dateKey] = { totalMoney: 0, items: [] };
+          dailyImportMap[dateKey].totalMoney += (imp.totalCost || 0);
+          dailyImportMap[dateKey].items.push(imp);
+        });
+        const sortedImportDates = Object.keys(dailyImportMap).sort().reverse();
+        if (sortedImportDates.length > 0 && openDailyImportsMap[sortedImportDates[0]] === undefined) {
+          openDailyImportsMap[sortedImportDates[0]] = true;
+        }
+        sortedImportDates.forEach(dateKey => {
+          const group = dailyImportMap[dateKey];
+          const isOpen = !!openDailyImportsMap[dateKey];
+          html += `
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
+              <div onclick="toggleDailyImportsGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${group.items.length} mặt hàng</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">Tổng tiền ngày nhập: <b class="text-slate-900 font-bold">${formatMoney(group.totalMoney)}</b></p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
+                </div>
+              </div>
+              ${isOpen ? `
+                <div class="p-3 space-y-2 bg-white">
+                  ${group.items.map(imp => {
+                    return `
+                      <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
+                        <div>
+                          <span class="font-bold text-slate-800 text-xs">${imp.productName}</span>
+                          <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(imp.qty)} ${imp.unit}</b></p>
+                        </div>
+                        <div class="text-right flex items-center gap-2.5">
+                          <p class="text-xs font-bold text-slate-900">${formatMoney(imp.totalCost)}</p>
+                          <button onclick="deleteImport('${imp.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                          <button onclick="deleteProduct('${imp.productId}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        });
+      }
+      html += `</div>`;
+      container.innerHTML = html;
     }
 
-    // TÍNH TỒN KHO THEO TỪNG LÔ NHẬP
-    function getStockDetails() {
-      return db.imports.map(item => {
-        const totalSold = db.sales.filter(s => s.importId === item.id).reduce((sum, s) => sum + s.qty, 0);
-        const totalGift = db.gifts.filter(g => g.importId === item.id).reduce((sum, g) => sum + g.qty, 0);
-        const totalDamage = db.damages.filter(d => d.importId === item.id).reduce((sum, d) => sum + d.qty, 0);
-        const stock = item.qty - totalSold - totalGift - totalDamage;
-        return { ...item, stock, totalSold, totalGift, totalDamage };
+    function calcProductPrices() {
+      const qty = parseFloat(document.getElementById('p-qty').value) || 0;
+      const totalCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
+      let avgCost = qty > 0 && totalCost > 0 ? totalCost / qty : 0;
+      let minSuggest = avgCost * 1.5;
+      document.getElementById('p-avg-cost-preview').innerText = formatMoney(avgCost);
+      document.getElementById('p-min-price-preview').innerText = formatMoney(minSuggest);
+    }
+
+    function handleAddProduct(e) {
+      e.preventDefault();
+      const name = document.getElementById('p-name').value.trim();
+      const unit = document.getElementById('p-unit').value.trim();
+      const date = document.getElementById('p-date').value;
+      const importQty = parseFloat(document.getElementById('p-qty').value) || 0;
+      const totalImportCost = parseFloat(document.getElementById('p-total-cost').value) || 0;
+
+      if (importQty <= 0) { alert("Số lượng nhập phải lớn hơn 0!"); return; }
+
+      let prod = db.products.find(p => p.name.toLowerCase() === name.toLowerCase());
+      let productId = '';
+      const batchId = 'BATCH_' + Date.now();
+
+      if (!prod) {
+        productId = 'P_' + Date.now();
+        prod = {
+          id: productId,
+          name,
+          unit,
+          currentStock: 0,
+          batches: []
+        };
+        db.products.push(prod);
+      } else {
+        productId = prod.id;
+        prod.unit = unit;
+        if (!prod.batches) prod.batches = [];
+      }
+
+      prod.batches.push({
+        batchId,
+      const productId = 'P_' + Date.now();
+      const newProduct = {
+        id: productId,
+        name,
+        unit,
+        currentStock: importQty,
+        totalCost: totalImportCost,
+        date,
+        qty: importQty,
+        originalQty: importQty,
+        cost: totalImportCost,
+        recoveredRevenue: 0
       });
-    }
+      };
 
-    // TAB 1: NHẬP HÀNG
-    function addImport() {
-      const name = document.getElementById('inp-name').value.trim();
-      const batch = document.getElementById('inp-batch').value.trim() || 'Lần 1';
-      const qty = parseFloat(document.getElementById('inp-qty').value) || 0;
-      const unit = document.getElementById('inp-unit').value.trim() || 'đơn vị';
-      const totalCost = parseFloat(document.getElementById('inp-total-cost').value) || 0;
+      prod.currentStock = (prod.currentStock || 0) + importQty;
+      db.products.push(newProduct);
 
-      if (!name || qty <= 0 || totalCost <= 0) { 
-        alert('Vui lòng điền đầy đủ tên, số lượng và tổng giá vốn!'); 
-        return; 
-      }
-
-      const costPerUnit = totalCost / qty;
-
+      if (!db.imports) db.imports = [];
       db.imports.push({
-        id: Date.now().toString(),
-        name: name,
-        keyName: name.toLowerCase(),
-        batch: batch,
-        qty: qty,
-        unit: unit,
-        totalCost: totalCost,
-        costPerUnit: costPerUnit
-      });
-      
-      saveData();
-      alert('Đã lưu nhập hàng thành công!');
-      
-      // Reset form
-      document.getElementById('inp-name').value = '';
-      document.getElementById('inp-batch').value = '';
-      document.getElementById('inp-qty').value = '';
-      document.getElementById('inp-unit').value = '';
-      document.getElementById('inp-total-cost').value = '';
-      document.getElementById('import-hint').style.display = 'none';
-    }
-
-    // TAB 2: KHO HIỆN TẠI GOM THEO TÊN
-    function renderInventory() {
-      const items = getStockDetails();
-      const grouped = {};
-
-      items.forEach(item => {
-        if (!grouped[item.keyName]) {
-          grouped[item.keyName] = { displayName: item.name, batches: [] };
-        }
-        grouped[item.keyName].batches.push(item);
+        id: batchId,
+        id: 'IMP_' + Date.now(),
+        date,
+        productId,
+        productName: name,
+        unit,
+        qty: importQty,
+        totalCost: totalImportCost
       });
 
-      let html = '';
-      for (let k in grouped) {
-        const group = grouped[k];
-        html += `<div style="margin-bottom:12px; border-bottom:1px dashed #ccc; padding-bottom:8px;">
-          <strong>${group.displayName}</strong>
-          <table style="margin-top:5px;">
-            <tr><th>Lần nhập</th><th>Đã nhập</th><th>Tồn kho</th></tr>`;
-        group.batches.forEach(b => {
-          html += `<tr>
-            <td><span class="batch-tag">${b.batch}</span></td>
-            <td>${b.qty} ${b.unit}</td>
-            <td><b>${b.stock}</b> ${b.unit}</td>
-          </tr>`;
-        });
-        html += `</table></div>`;
-      }
-      document.getElementById('inventory-list').innerHTML = html || 'Chưa có sản phẩm trong kho.';
+      openDailyImportsMap[date] = true;
+      saveDB();
+      renderProducts();
+      lucide.createIcons();
     }
 
-    // ĐỔ DỮ LIỆU VÀO DROPDOWN CHỈ LẤY TỒN KHO > 0
-    function populateDropdown(selectId) {
-      const items = getStockDetails().filter(i => i.stock > 0);
-      const select = document.getElementById(selectId);
-      select.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
-      items.forEach(item => {
-        select.innerHTML += `<option value="${item.id}">${item.name} (${item.batch}) - Tồn: ${item.stock} ${item.unit}</option>`;
-      });
-    }
-
-    // TAB 3: BÁN HÀNG
-    function addSale() {
-      const importId = document.getElementById('sale-select').value;
-      const qty = parseFloat(document.getElementById('sale-qty').value) || 0;
-      const totalPrice = parseFloat(document.getElementById('sale-total-price').value) || 0;
-
-      if (!importId) { alert('Vui lòng chọn sản phẩm!'); return; }
-      const item = getStockDetails().find(i => i.id === importId);
-      if (qty <= 0 || qty > item.stock || totalPrice <= 0) { 
-        alert('Số lượng bán hoặc tổng giá bán không hợp lệ / vượt quá tồn kho!'); 
-        return; 
-      }
-
-      db.sales.push({ importId, qty, totalPrice });
-      saveData();
-      alert('Đã tạo đơn bán thành công!');
-      document.getElementById('sale-qty').value = '';
-      document.getElementById('sale-total-price').value = '';
-      populateDropdown('sale-select');
-    }
-
-    // TAB 4: BIẾU TẶNG
-    function addGift() {
-      const importId = document.getElementById('gift-select').value;
-      const qty = parseFloat(document.getElementById('gift-qty').value) || 0;
-
-      if (!importId) { alert('Vui lòng chọn sản phẩm!'); return; }
-      const item = getStockDetails().find(i => i.id === importId);
-      if (qty <= 0 || qty > item.stock) { alert('Số lượng biếu tặng không hợp lệ!'); return; }
-
-      db.gifts.push({ importId, qty });
-      saveData();
-      alert('Đã xuất biếu tặng!');
-      document.getElementById('gift-qty').value = '';
-      populateDropdown('gift-select');
-      renderGiftSummary();
-    }
-
-    function renderGiftSummary() {
-      const items = getStockDetails();
-      const summary = {};
-      items.forEach(item => {
-        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0, unit: item.unit };
-        summary[item.keyName].total += item.totalGift;
-      });
-
-      let html = '<table><tr><th>Tên sản phẩm</th><th>Tổng biếu tặng</th></tr>';
-      for (let k in summary) {
-        if (summary[k].total > 0) {
-          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total} ${summary[k].unit}</td></tr>`;
+    function deleteImport(importId) {
+      if (confirm("Bạn có chắc muốn xóa đợt nhập hàng này? Số lượng tồn kho và tổng vốn sẽ tự động trừ đi.")) {
+        const imp = (db.imports || []).find(i => i.id === importId);
+        if (imp) {
+          const prod = db.products.find(p => p.id === imp.productId);
+          if (prod) {
+            prod.currentStock -= imp.qty;
+            if (prod.batches) {
+              prod.batches = prod.batches.filter(b => b.batchId !== importId);
+            }
+            if (prod.currentStock <= 0 && (!prod.batches || prod.batches.length === 0)) {
+              db.products = db.products.filter(p => p.id !== prod.id);
+            }
+          }
+          db.imports = db.imports.filter(i => i.id !== importId);
+          saveDB();
+          renderProducts();
+          lucide.createIcons();
         }
       }
-      html += '</table>';
-      document.getElementById('gift-summary').innerHTML = html;
     }
 
-    // TAB 5: HƯ HỎNG
-    function addDamage() {
-      const importId = document.getElementById('damage-select').value;
-      const qty = parseFloat(document.getElementById('damage-qty').value) || 0;
-
-      if (!importId) { alert('Vui lòng chọn sản phẩm!'); return; }
-      const item = getStockDetails().find(i => i.id === importId);
-      if (qty <= 0 || qty > item.stock) { alert('Số lượng báo hỏng không hợp lệ!'); return; }
-
-      db.damages.push({ importId, qty });
-      saveData();
-      alert('Đã báo hư hỏng!');
-      document.getElementById('damage-qty').value = '';
-      populateDropdown('damage-select');
-      renderDamageSummary();
-    }
-
-    function renderDamageSummary() {
-      const items = getStockDetails();
-      const summary = {};
-      items.forEach(item => {
-        if (!summary[item.keyName]) summary[item.keyName] = { name: item.name, total: 0, unit: item.unit };
-        summary[item.keyName].total += item.totalDamage;
-      });
-
-      let html = '<table><tr><th>Tên sản phẩm</th><th>Tổng hư hỏng</th></tr>';
-      for (let k in summary) {
-        if (summary[k].total > 0) {
-          html += `<tr><td>${summary[k].name}</td><td>${summary[k].total} ${summary[k].unit}</td></tr>`;
-        }
+    function deleteProduct(id) {
+      if (confirm("Xóa sản phẩm này sẽ XÓA TOÀN BỘ lịch sử liên quan. Bạn có chắc chắn?")) {
+      if (confirm("Xóa sản phẩm này sẽ xóa hoàn toàn khỏi kho và báo cáo. Bạn có chắc chắn?")) {
+        db.products = db.products.filter(p => p.id !== id);
+        db.imports = (db.imports || []).filter(i => i.productId !== id);
+        db.sales = db.sales.filter(s => s.productId !== id);
+        db.sales = (db.sales || []).filter(s => s.productId !== id);
+        if (db.giveaways) db.giveaways = db.giveaways.filter(g => g.productId !== id);
+        if (db.damaged) db.damaged = db.damaged.filter(d => d.productId !== id);
+        saveDB();
+        renderProducts();
+        lucide.createIcons();
       }
-      html += '</table>';
-      document.getElementById('damage-summary').innerHTML = html;
     }
 
-    // TAB 6: BÁO CÁO CHI TIẾT
-    function renderReport() {
-      const items = getStockDetails();
-      const grouped = {};
+    // 2. SALES TAB
+    function toggleDailySalesGroup(dateKey) {
+      openDailySalesMap[dateKey] = !openDailySalesMap[dateKey];
+      renderSales();
+      lucide.createIcons();
+    }
 
-      items.forEach(item => {
-        const itemSales = db.sales.filter(s => s.importId === item.id);
-        const revenue = itemSales.reduce((sum, s) => sum + s.totalPrice, 0);
-        const costVal = item.totalSold * item.costPerUnit;
-        const profit = revenue - costVal;
+    function renderSales() {
+      const container = document.getElementById('app-content');
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
 
-        if (!grouped[item.keyName]) {
-          grouped[item.keyName] = { displayName: item.name, unit: item.unit, batches: [], totalRev: 0, totalProfit: 0 };
-        }
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="shopping-bag" class="w-5 h-5 mr-2 text-ios-green"></i> Đơn bán hàng mới
+          </h2>
+          <form onsubmit="handleAddSale(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm</label>
+              <select id="s-product-id" onchange="onSelectSaleProduct()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn sản phẩm --</option>
+                ${productOptions}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày bán</label>
+                <input type="date" id="s-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng bán</label>
+                <input type="number" step="any" id="s-qty" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Tổng tiền khách trả (Tổng Doanh Thu - VND)</label>
+              <input type="number" id="s-total-revenue" oninput="calcSalePreview()" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+            <div class="bg-emerald-50/60 rounded-xl p-3 grid grid-cols-2 gap-2 border border-emerald-100 text-xs">
+              <div>
+                <span class="text-slate-500 block">Giá bán thực tế / ĐVT:</span>
+                <span id="s-unit-price-preview" class="font-bold text-slate-800">0 đ</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Lợi Nhuận Dự Kiến:</span>
+                <span id="s-profit-preview" class="font-bold text-ios-green">0 đ</span>
+              </div>
+            </div>
+            <button type="submit" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Xác Nhận Bán Hàng
+            </button>
+          </form>
+        </div>
+        <div class="space-y-3">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử bán hàng theo ngày</h2>
+      `;
 
-        grouped[item.keyName].batches.push({
-          batch: item.batch,
-          sold: item.totalSold,
-          revenue,
-          profit
-        });
-        grouped[item.keyName].totalRev += revenue;
-        grouped[item.keyName].totalProfit += profit;
-      });
-
-      let html = '';
-      for (let k in grouped) {
-        const group = grouped[k];
-        html += `<div style="margin-bottom:15px; border-bottom:2px solid var(--border); padding-bottom:10px;">
-          <h3 style="font-size:0.95rem; color:var(--primary);">${group.displayName}</h3>
-          <table>
-            <tr><th>Chi tiết</th><th>Đã bán</th><th>Doanh thu</th><th>Lãi / Lỗ</th></tr>`;
-        
-        group.batches.forEach(b => {
-          const pClass = b.profit >= 0 ? 'profit-pos' : 'profit-neg';
-          html += `<tr>
-            <td><span class="batch-tag">${b.batch}</span></td>
-            <td>${b.sold} ${group.unit}</td>
-            <td>${b.revenue.toLocaleString()}đ</td>
-            <td class="${pClass}">${b.profit.toLocaleString()}đ</td>
-          </tr>`;
+      const validSales = db.sales.filter(s => db.products.some(p => p.id === s.productId));
+      const validSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId));
+      if (validSales.length === 0) {
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có giao dịch bán nào</p></div>`;
+      } else {
+        let dailyGroupMap = {};
+        validSales.forEach(s => {
+          const dateKey = s.date || 'Chưa rõ ngày';
+          if (!dailyGroupMap[dateKey]) dailyGroupMap[dateKey] = { revenue: 0, cost: 0, profit: 0, items: [] };
+          dailyGroupMap[dateKey].revenue += (s.totalRevenue || 0);
+          dailyGroupMap[dateKey].cost += (s.totalCost || 0);
+          dailyGroupMap[dateKey].profit += (s.profit || 0);
+          dailyGroupMap[dateKey].items.push(s);
         });
 
-        const totClass = group.totalProfit >= 0 ? 'profit-pos' : 'profit-neg';
-        html += `<tr style="background:#f8fafc; font-weight:bold;">
-          <td>TỔNG CHUNG</td>
-          <td>-</td>
-          <td>${group.totalRev.toLocaleString()}đ</td>
-          <td class="${totClass}">${group.totalProfit.toLocaleString()}đ</td>
-        </tr></table></div>`;
+        const sortedDates = Object.keys(dailyGroupMap).sort().reverse();
+        if (sortedDates.length > 0 && openDailySalesMap[sortedDates[0]] === undefined) {
+          openDailySalesMap[sortedDates[0]] = true;
+        }
+
+        sortedDates.forEach(dateKey => {
+          const group = dailyGroupMap[dateKey];
+          const marginPercent = group.revenue > 0 ? ((group.profit / group.revenue) * 100).toFixed(1) : 0;
+          const isOpen = !!openDailySalesMap[dateKey];
+
+          html += `
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
+              <div onclick="toggleDailySalesGroup('${dateKey}')" class="p-4 bg-slate-50/80 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none border-b border-slate-100">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> ${formatDateDisplay(dateKey)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${group.items.length} mặt hàng</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">Doanh thu: <b class="text-slate-800">${formatMoney(group.revenue)}</b></p>
+                </div>
+                <div class="text-right flex items-center gap-3">
+                  <div>
+                    <span class="text-xs font-bold ${group.profit >= 0 ? 'text-ios-green' : 'text-ios-red'} block">Lãi: ${formatMoney(group.profit)}</span>
+                    <span class="text-[10px] font-bold text-ios-green bg-emerald-50 px-1.5 py-0.5 rounded-full inline-block mt-0.5">${marginPercent}% giá bán</span>
+                  </div>
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}"></i>
+                </div>
+              </div>
+              ${isOpen ? `
+                <div class="p-3 space-y-2 bg-white">
+                  ${group.items.map(s => {
+                    const prod = db.products.find(p => p.id === s.productId);
+                    const itemMargin = s.totalRevenue > 0 ? ((s.profit / s.totalRevenue) * 100).toFixed(1) : 0;
+                    return `
+                      <div class="bg-slate-50/60 rounded-xl p-3 flex justify-between items-center border border-slate-100">
+                        <div>
+                          <span class="font-bold text-slate-800 text-xs">${prod ? prod.name : 'Sản phẩm'}</span>
+                          <p class="text-[11px] text-slate-500 mt-0.5">Số lượng: <b class="text-slate-700">${formatNum(s.qty)} ${prod ? prod.unit : ''}</b></p>
+                        </div>
+                        <div class="text-right flex items-center gap-2.5">
+                          <div>
+                            <p class="text-xs font-bold text-slate-900">${formatMoney(s.totalRevenue)}</p>
+                            <p class="text-[11px] font-semibold ${s.profit >= 0 ? 'text-ios-green' : 'text-ios-red'}">Lãi: ${formatMoney(s.profit)} (${itemMargin}%)</p>
+                          </div>
+                          <button onclick="deleteSale('${s.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        });
       }
-      document.getElementById('report-view').innerHTML = html || 'Chưa có dữ liệu báo cáo.';
+      html += `</div>`;
+      container.innerHTML = html;
     }
+
+    function onSelectSaleProduct() {
+      const pId = document.getElementById('s-product-id').value;
+      const prod = db.products.find(p => p.id === pId);
+      if (prod && prod.batches && prod.batches.length > 0) {
+        const totalCost = prod.batches.reduce((sum, b) => sum + b.cost, 0);
+        const totalQty = prod.batches.reduce((sum, b) => sum + b.qty, 0);
+        let avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+      if (prod && prod.totalCost > 0 && prod.currentStock > 0) {
+        let avgCost = prod.totalCost / prod.currentStock;
+        const qty = parseFloat(document.getElementById('s-qty').value) || 0;
+        if (qty > 0) document.getElementById('s-total-revenue').value = Math.round(qty * avgCost * 1.5);
+        calcSalePreview();
+      }
+    }
+
+    function calcSalePreview() {
+      const pId = document.getElementById('s-product-id').value;
+      const qty = parseFloat(document.getElementById('s-qty').value) || 0;
+      const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
+      const prod = db.products.find(p => p.id === pId);
+      let unitPrice = qty > 0 ? totalRevenue / qty : 0;
+
+      let estimatedCost = 0;
+      if (prod && prod.batches) {
+        const totalC = prod.batches.reduce((sum, x) => sum + x.cost, 0);
+        const totalQ = prod.batches.reduce((sum, x) => sum + x.qty, 0);
+        let avgC = totalQ > 0 ? totalC / totalQ : 0;
+      if (prod && prod.currentStock > 0) {
+        let avgC = prod.totalCost / (prod.originalStock || prod.currentStock);
+        estimatedCost = qty * avgC;
+      }
+
+      let profit = totalRevenue - estimatedCost;
+      document.getElementById('s-unit-price-preview').innerText = formatMoney(unitPrice) + ' / đvt';
+      document.getElementById('s-profit-preview').innerText = formatMoney(profit);
+    }
+
+    function handleAddSale(e) {
+      e.preventDefault();
+      const productId = document.getElementById('s-product-id').value;
+      const date = document.getElementById('s-date').value;
+      const qty = parseFloat(document.getElementById('s-qty').value) || 0;
+      const totalRevenue = parseFloat(document.getElementById('s-total-revenue').value) || 0;
+      const prod = db.products.find(p => p.id === productId);
+
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng bán phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng bán (${qty}) vượt quá tồn kho hiện tại (${prod.currentStock} ${prod.unit}). Tiếp tục?`)) return;
+
+      let remainingQtyToSell = qty;
+      let revenuePerUnit = totalRevenue / qty;
+      let totalCostCalculated = 0;
+
+      if (prod.batches) {
+        for (let batch of prod.batches) {
+          if (batch.qty > 0 && remainingQtyToSell > 0) {
+            let qtyFromBatch = Math.min(batch.qty, remainingQtyToSell);
+            if (!batch.originalQty) batch.originalQty = batch.qty;
+
+            let costOfThisPart = batch.cost > 0 ? qtyFromBatch * (batch.cost / (batch.originalQty || batch.qty)) : 0;
+            totalCostCalculated += costOfThisPart;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      let totalCostCalculated = qty * unitCost;
+
+            batch.qty -= qtyFromBatch;
+            batch.recoveredRevenue = (batch.recoveredRevenue || 0) + (qtyFromBatch * revenuePerUnit);
+
+            remainingQtyToSell -= qtyFromBatch;
+          }
+        }
+      }
+      prod.currentStock -= qty;
+      prod.recoveredRevenue = (prod.recoveredRevenue || 0) + totalRevenue;
+
+      const profit = totalRevenue - totalCostCalculated;
+      const actualUnitPrice = totalRevenue / qty;
+      const marginPercent = totalRevenue > 0 ? ((profit / totalRevenue) * 100).toFixed(1) : 0;
+
+      prod.currentStock -= qty;
+      openDailySalesMap[date] = true;
+
+      if (!db.sales) db.sales = [];
+      db.sales.push({
+        id: 'S_' + Date.now(),
+        date,
+        productId,
+        qty,
+        totalRevenue,
+        actualUnitPrice,
+        totalCost: totalCostCalculated,
+        profit,
+        marginPercent
+      });
+
+      saveDB();
+      renderSales();
+      lucide.createIcons();
+    }
+
+    function deleteSale(saleId) {
+      if (confirm("Bạn muốn xóa đơn bán này?")) {
+        const sale = db.sales.find(s => s.id === saleId);
+        const sale = (db.sales || []).find(s => s.id === saleId);
+        if (sale) {
+          const prod = db.products.find(p => p.id === sale.productId);
+          if (prod) {
+            prod.currentStock += sale.qty;
+            if (prod.batches && prod.batches.length > 0) {
+              prod.batches[prod.batches.length - 1].qty += sale.qty;
+              prod.batches[prod.batches.length - 1].recoveredRevenue -= sale.totalRevenue;
+            }
+            prod.recoveredRevenue = Math.max(0, (prod.recoveredRevenue || 0) - sale.totalRevenue);
+          }
+          db.sales = db.sales.filter(s => s.id !== saleId);
+          saveDB();
+          renderSales();
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // 3. GIVEAWAYS TAB
+    function renderGiveaways() {
+      const container = document.getElementById('app-content');
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="gift" class="w-5 h-5 mr-2 text-ios-pink"></i> Ghi nhận biếu tặng
+          </h2>
+          <form onsubmit="handleAddGiveaway(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm Biếu</label>
+              <select id="g-product-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn sản phẩm --</option>
+                ${productOptions}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày biếu</label>
+                <input type="date" id="g-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng biếu</label>
+                <input type="number" step="any" id="g-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Ghi chú (Biếu ai / Địa điểm)</label>
+              <input type="text" id="g-note" placeholder="VD: Bà, Nhà ăn số 2..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+            <button type="submit" class="w-full bg-ios-pink text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Xác Nhận Biếu Tặng
+            </button>
+          </form>
+        </div>
+        <div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử biếu tặng</h2>
+      `;
+      const validGiveaways = (db.giveaways || []).filter(g => db.products.some(p => p.id === g.productId));
+      if (validGiveaways.length === 0) {
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="heart-handshake" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có lịch sử biếu tặng nào</p></div>`;
+      } else {
+        [...validGiveaways].reverse().forEach(g => {
+          const prod = db.products.find(p => p.id === g.productId);
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${g.date}</span></div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã biếu: <b class="text-ios-pink">${formatNum(g.qty)} ${prod ? prod.unit : ''}</b></p>
+                ${g.note ? `<p class="text-[11px] text-slate-400 mt-0.5">📝 Biếu: <b>${g.note}</b></p>` : ''}
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="text-xs font-bold bg-pink-50 text-ios-pink px-2.5 py-1 rounded-full">Vốn: ${formatMoney(g.costValue)}</span>
+                <button onclick="deleteGiveaway('${g.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function handleAddGiveaway(e) {
+      e.preventDefault();
+      const productId = document.getElementById('g-product-id').value;
+      const date = document.getElementById('g-date').value;
+      const qty = parseFloat(document.getElementById('g-qty').value) || 0;
+      const note = document.getElementById('g-note').value.trim();
+      const prod = db.products.find(p => p.id === productId);
+
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng biếu phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
+
+      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
+      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
+      let avgC = totalQ > 0 ? totalC / totalQ : 0;
+      const costValue = qty * avgC;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      const costValue = qty * unitCost;
+
+      prod.currentStock -= qty;
+      if (!db.giveaways) db.giveaways = [];
+      db.giveaways.push({ id: 'G_' + Date.now(), date, productId, qty, note, costValue });
+      saveDB();
+      renderGiveaways();
+      lucide.createIcons();
+    }
+
+    function deleteGiveaway(giveawayId) {
+      if (confirm("Bạn muốn xóa lượt biếu này?")) {
+        const giveaway = db.giveaways.find(g => g.id === giveawayId);
+        const giveaway = (db.giveaways || []).find(g => g.id === giveawayId);
+        if (giveaway) {
+          const prod = db.products.find(p => p.id === giveaway.productId);
+          if (prod) prod.currentStock += giveaway.qty;
+          db.giveaways = db.giveaways.filter(g => g.id !== giveawayId);
+          saveDB();
+          renderGiveaways();
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // 4. DAMAGED TAB
+    function renderDamaged() {
+      const container = document.getElementById('app-content');
+      let productOptions = db.products.map(p => `<option value="${p.id}">${p.name} - Tồn: ${formatNum(p.currentStock)} ${p.unit}</option>`).join('');
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-base font-semibold mb-3 flex items-center text-slate-800">
+            <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 text-ios-orange"></i> Ghi nhận Hư hỏng / Hao hụt
+          </h2>
+          <form onsubmit="handleAddDamaged(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Sản Phẩm Hư Hỏng</label>
+              <select id="d-product-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn sản phẩm --</option>
+                ${productOptions}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày hư hỏng</label>
+                <input type="date" id="d-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng hỏng</label>
+                <input type="number" step="any" id="d-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Nguyên nhân / Ghi chú</label>
+              <input type="text" id="d-note" placeholder="VD: Dập nát vận chuyển..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+            <button type="submit" class="w-full bg-ios-orange text-white font-medium py-2.5 rounded-xl text-sm shadow-sm active:opacity-90">
+              Xác Nhận Ghi Nhận Hư Hỏng
+            </button>
+          </form>
+        </div>
+        <div class="space-y-3"><h2 class="text-sm font-semibold text-slate-500 px-1">Lịch sử hư hỏng & hao hụt</h2>
+      `;
+      const validDamaged = (db.damaged || []).filter(d => db.products.some(p => p.id === d.productId));
+      if (validDamaged.length === 0) {
+        html += `<div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 opacity-50"></i><p class="text-sm">Chưa có ghi nhận hư hỏng nào</p></div>`;
+      } else {
+        [...validDamaged].reverse().forEach(d => {
+          const prod = db.products.find(p => p.id === d.productId);
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2"><span class="font-bold text-slate-900">${prod ? prod.name : 'Sản phẩm'}</span><span class="text-xs text-slate-400">${d.date}</span></div>
+                <p class="text-xs text-slate-600 mt-1 font-medium">Đã hỏng: <b class="text-ios-orange">${formatNum(d.qty)} ${prod ? prod.unit : ''}</b></p>
+                ${d.note ? `<p class="text-[11px] text-slate-400 mt-0.5">⚠️ Lý do: <b>${d.note}</b></p>` : ''}
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="text-xs font-bold bg-orange-50 text-ios-orange px-2.5 py-1 rounded-full">Thất thoát: ${formatMoney(d.costValue)}</span>
+                <button onclick="deleteDamaged('${d.id}')" class="text-slate-300 hover:text-ios-red p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function handleAddDamaged(e) {
+      e.preventDefault();
+      const productId = document.getElementById('d-product-id').value;
+      const date = document.getElementById('d-date').value;
+      const qty = parseFloat(document.getElementById('d-qty').value) || 0;
+      const note = document.getElementById('d-note').value.trim();
+      const prod = db.products.find(p => p.id === productId);
+
+      if (!prod) { alert("Vui lòng chọn sản phẩm!"); return; }
+      if (qty <= 0) { alert("Số lượng hư hỏng phải lớn hơn 0!"); return; }
+      if (qty > prod.currentStock && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
+
+      let totalC = prod.batches ? prod.batches.reduce((sum, x) => sum + x.cost, 0) : 0;
+      let totalQ = prod.batches ? prod.batches.reduce((sum, x) => sum + x.qty, 0) : 0;
+      let avgC = totalQ > 0 ? totalC / totalQ : 0;
+      const costValue = qty * avgC;
+      if (!prod.originalStock) prod.originalStock = prod.currentStock + qty;
+      let unitCost = prod.totalCost / prod.originalStock;
+      const costValue = qty * unitCost;
+
+      prod.currentStock -= qty;
+      if (!db.damaged) db.damaged = [];
+      db.damaged.push({ id: 'D_' + Date.now(), date, productId, qty, note, costValue });
+      saveDB();
+      renderDamaged();
+      lucide.createIcons();
+    }
+
+    function deleteDamaged(damagedId) {
+      if (confirm("Bạn muốn xóa ghi nhận hư hỏng này?")) {
+        const damagedItem = db.damaged.find(d => d.id === damagedId);
+        const damagedItem = (db.damaged || []).find(d => d.id === damagedId);
+        if (damagedItem) {
+          const prod = db.products.find(p => p.id === damagedItem.productId);
+          if (prod) prod.currentStock += damagedItem.qty;
+          db.damaged = db.damaged.filter(d => d.id !== damagedId);
+          saveDB();
+          renderDamaged();
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // 5. REPORTS TAB
+    // 5. REPORTS TAB (Sửa lỗi đồng bộ số liệu tổng hợp và chi tiết)
+    function renderReports() {
+      const container = document.getElementById('app-content');
+
+      let availableMonths = new Set();
+      (db.sales || []).forEach(s => { if (s.date) availableMonths.add(s.date.substring(0, 7)); });
+      (db.imports || []).forEach(i => { if (i.date) availableMonths.add(i.date.substring(0, 7)); });
+      let sortedMonths = Array.from(availableMonths).sort().reverse();
+
+      const currentMonthStr = getTodayString().substring(0, 7);
+      if (!selectedReportMonth) {
+        selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
+      }
+
+      const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
+      // Lọc các giao dịch nhập và bán theo tháng được chọn
+      const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
+      const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
+
+      let totalRevenue = 0;
+      filteredSales.forEach(s => { totalRevenue += (s.totalRevenue || 0); });
+
+      let totalImportBudget = 0;
+      filteredImports.forEach(i => { totalImportBudget += (i.totalCost || 0); });
+
+      let totalWithdrawableProfit = 0;
+      let profitDetails = [];
+
+      // Lấy danh sách các sản phẩm thuộc tháng được chọn để tính tổng hợp chuẩn xác
+      const productIdsInMonth = new Set();
+      filteredImports.forEach(i => productIdsInMonth.add(i.productId));
+      filteredSales.forEach(s => productIdsInMonth.add(s.productId));
+
+      if (db.products) {
+        db.products.forEach(p => {
+          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
+          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
+          // Chỉ xét các sản phẩm có phát sinh trong tháng được chọn
+          if (!productIdsInMonth.has(p.id)) return;
+
+          let totalCostP = p.totalCost || 0;
+          let totalRecoveredP = p.recoveredRevenue || 0;
+          let stock = p.currentStock || 0;
+
+          if (totalCostP === 0 && totalRecoveredP > 0) {
+            let itemProfit = totalRecoveredP;
+            totalWithdrawableProfit += itemProfit;
+            let sign = itemProfit >= 0 ? '+' : '';
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: +${formatMoney(itemProfit)}` });
+          } else if (totalRecoveredP >= totalCostP && totalCostP > 0) {
+            let itemProfit = totalRecoveredP - totalCostP;
+            totalWithdrawableProfit += itemProfit;
+            let sign = itemProfit >= 0 ? '+' : '';
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: ${sign}${formatMoney(itemProfit)}` });
+            profitDetails.push({ text: `🟢 <b>${p.name}</b>: +${formatMoney(itemProfit)}` });
+          } else if (stock === 0) {
+            let itemLoss = totalCostP - totalRecoveredP;
+            totalWithdrawableProfit -= itemLoss;
+            profitDetails.push({ text: `🔴 <b>${p.name}</b>: -${formatMoney(itemLoss)}` });
+          } else {
+            let remaining = Math.max(totalCostP - totalRecoveredP, 0);
+            profitDetails.push({ text: `🟡 <b>${p.name}</b>: Đang hoàn vốn (còn thiếu ${formatMoney(remaining)})` });
+          }
+        });
+      }
+
+      let monthOptions = sortedMonths.map(m => {
+        let parts = m.split('-');
+        return `<option value="${m}" ${selectedReportMonth === m ? 'selected' : ''}>Tháng ${parts[1]}/${parts[0]}</option>`;
+      }).join('');
+
+      let html = `
+        <!-- BỘ LỌC CHỌN THÁNG -->
+        <div class="bg-white rounded-2xl p-3 shadow-sm mb-4 border border-slate-100 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-4 h-4 text-ios-blue"></i> Chọn tháng xem báo cáo:
+          </span>
+          <select id="report-month-select" onchange="changeReportMonth(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            ${monthOptions || `<option value="${currentMonthStr}">Tháng hiện tại</option>`}
+          </select>
+        </div>
+
+        <!-- THẺ TỔNG HỢP LÃI LỖ -->
+        <div class="bg-emerald-500 text-white rounded-2xl p-4 shadow-md mb-4 space-y-2">
+          <div class="flex justify-between items-center border-b border-emerald-400/60 pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center gap-1.5">
+              <i data-lucide="wallet" class="w-4 h-4"></i> Tổng lãi/lỗ trong tháng
+            </span>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">${selectedReportMonth}</span>
+          </div>
+          <div>
+            <p class="text-3xl font-black">${formatMoney(totalWithdrawableProfit)}</p>
+            <p class="text-[11px] text-emerald-100 mt-0.5">Tổng tiền lãi sau khi bù trừ doanh thu và vốn</p>
+          </div>
+          <div class="bg-white/95 text-slate-800 rounded-xl p-3 space-y-1.5 mt-2">
+            ${profitDetails.length > 0 ? profitDetails.map(d => `<p class="text-xs">${d.text}</p>`).join('') : '<p class="text-xs text-slate-400">Chưa có dữ liệu tháng này</p>'}
+          </div>
+        </div>
+
+        <!-- TỔNG QUAN TÀI CHÍNH -->
+        <div class="grid grid-cols-1 gap-3 mb-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">1. Vốn Nhập Trong Tháng</p>
+              <p class="text-xl font-extrabold text-slate-900 mt-0.5">${formatMoney(totalImportBudget)}</p>
+            </div>
+            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center">
+              <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div>
+              <p class="text-xs text-slate-400 font-medium">2. Doanh Thu Trong Tháng</p>
+              <p class="text-xl font-extrabold text-ios-blue mt-0.5">${formatMoney(totalRevenue)}</p>
+            </div>
+            <div class="w-10 h-10 bg-blue-50 text-ios-blue rounded-full flex items-center justify-center">
+              <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRẠNG THÁI TỪNG MẶT HÀNG -->
+        <div class="space-y-3">
+          <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết từng mặt hàng</h2>
+      `;
+
+      if (!db.products || db.products.length === 0) {
+        html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
+      } else {
+        db.products.forEach(p => {
+          let totalCostP = p.batches ? p.batches.reduce((sum, b) => sum + (b.cost || 0), 0) : 0;
+          let totalRecoveredP = p.batches ? p.batches.reduce((sum, b) => sum + (b.recoveredRevenue || 0), 0) : 0;
+          if (!productIdsInMonth.has(p.id)) return;
+
+          let totalCostP = p.totalCost || 0;
+          let totalRecoveredP = p.recoveredRevenue || 0;
+          let stock = p.currentStock || 0;
+
+          let badgeClass = '';
+          let badgeText = '';
+          let detailBox = '';
+
+          if (totalCostP === 0 && totalRecoveredP > 0) {
+            badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            badgeText = '🟢 LÃI THUẦN';
+            detailBox = `<p class="text-emerald-600 font-bold">+${formatMoney(totalRecoveredP)}</p>`;
+          } else if (totalRecoveredP >= totalCostP) {
+            let itemProfit = totalRecoveredP - totalCostP;
+            badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            badgeText = '🟢 CÓ LÃI';
+            detailBox = `<p class="text-emerald-600 font-bold">+${formatMoney(itemProfit)}</p>`;
+          } else if (stock === 0) {
+            let itemLoss = totalCostP - totalRecoveredP;
+            badgeClass = 'text-red-700 bg-red-50 border-red-200';
+            badgeText = '🔴 LỖ';
+            detailBox = `<p class="text-red-600 font-bold">-${formatMoney(itemLoss)}</p>`;
+          } else {
+            let percent = totalCostP > 0 ? Math.min(Math.round((totalRecoveredP / totalCostP) * 100), 100) : 0;
+            let remaining = Math.max(totalCostP - totalRecoveredP, 0);
+            badgeClass = 'text-amber-700 bg-amber-50 border-amber-200';
+            badgeText = `🟡 Đang hoàn vốn (${percent}%)`;
+            detailBox = `<p class="text-slate-900 font-bold">Thiếu: ${formatMoney(remaining)}</p>`;
+          }
+
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
+              <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <div>
+                  <span class="font-bold text-slate-900 text-base">${p.name}</span>
+                  <span class="text-xs text-slate-400 block">Tồn kho: <b>${formatNum(stock)} ${p.unit}</b></span>
+                </div>
+                <span class="text-xs font-bold px-2.5 py-1 rounded-full border ${badgeClass}">
+                  ${badgeText}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+                <div>
+                  <p>Tổng vốn nhập: <b class="text-slate-800">${formatMoney(totalCostP)}</b></p>
+                  <p>Đã thu hồi: <b class="text-ios-blue">${formatMoney(totalRecoveredP)}</b></p>
+                </div>
+                <div class="text-right">
+                  ${detailBox}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function changeReportMonth(monthVal) {
+      selectedReportMonth = monthVal;
+      renderReports();
+    }
+
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `quanlykho_backup_${getTodayString()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    window.onload = function() {
+      loadDB();
+      switchTab('products');
+    };
   </script>
 </body>
 </html>
