@@ -126,7 +126,7 @@
     let openDailyImportsMap = {};
     let selectedReportMonth = '';
 
-    // Khắc phục triệt để lỗi số thực 0.0099999999999
+    // Khắc phục triệt để lỗi số thực floating-point
     function cleanNum(num) {
       return Math.round((parseFloat(num) || 0) * 10000) / 10000;
     }
@@ -139,6 +139,10 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
+          // Đảm bảo dữ liệu cũ có đủ originalStock
+          db.products.forEach(p => {
+            if (!p.originalStock) p.originalStock = cleanNum(p.currentStock);
+          });
         } catch(e) { console.error(e); }
       }
       googleSheetUrl = localStorage.getItem('app_google_sheet_url') || '';
@@ -190,6 +194,9 @@
           if (!db.imports) db.imports = [];
           if (!db.giveaways) db.giveaways = [];
           if (!db.damaged) db.damaged = [];
+          db.products.forEach(p => {
+            if (!p.originalStock) p.originalStock = cleanNum(p.currentStock);
+          });
           localStorage.setItem('app_inventory_db', JSON.stringify(db));
           switchTab(currentTab);
         }
@@ -309,7 +316,7 @@
           </form>
         </div>
 
-        <!-- HIỂN THỊ KHO HÀNG THEO CẤU TRÚC SẢN PHẨM -> XUỐNG DÒNG CÁC ĐỢT NHẬP -->
+        <!-- HIỂN THỊ KHO HÀNG THEO CẤU TRÚC SẢN PHẨM -> XUỐNG DÒNG CÁC ĐỢT NHẬP CÓ TỔNG NHẬP VÀ TỒN -->
         <div class="space-y-3 mb-6">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Kho hiện tại</h2>
           <div class="grid grid-cols-1 gap-3">
@@ -318,7 +325,6 @@
       if (db.products.length === 0) {
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào trong kho</p></div>`;
       } else {
-        // Gom nhóm các đợt nhập theo Tên sản phẩm
         let groupedProducts = {};
         db.products.forEach(p => {
           const key = p.name.trim();
@@ -334,7 +340,6 @@
           const group = groupedProducts[nameKey];
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-              <!-- Dòng 1: Tên sản phẩm chính & Tổng tồn toàn bộ đợt -->
               <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
                 <div>
                   <span class="font-black text-slate-900 text-base">${group.name}</span>
@@ -345,7 +350,6 @@
                 </span>
               </div>
 
-              <!-- Dòng bên dưới: Liệt kê danh sách từng đợt nhập -->
               <div class="space-y-2">
                 ${group.batches.map(p => `
                   <div class="bg-slate-50/80 rounded-xl p-2.5 flex justify-between items-center border border-slate-100 text-xs">
@@ -355,6 +359,7 @@
                         <span class="text-[10px] text-slate-400">(${formatDateDisplay(p.date)})</span>
                       </div>
                       <p class="text-slate-500 mt-1">
+                        Nhập ban đầu: <b class="text-slate-800 font-semibold">${formatNum(p.originalStock || p.currentStock)} ${p.unit}</b> | 
                         Tồn: <b class="${cleanNum(p.currentStock) > 0 ? 'text-emerald-600' : 'text-slate-400'} font-bold">${formatNum(p.currentStock)} ${p.unit}</b> | 
                         Vốn: <b class="text-slate-700 font-semibold">${formatMoney(p.totalCost)}</b>
                       </p>
@@ -462,6 +467,7 @@
         batchName: batchInput,
         unit,
         currentStock: importQty,
+        originalStock: importQty,
         totalCost: totalImportCost,
         date,
         recoveredRevenue: 0
@@ -676,7 +682,7 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng bán (${formatNum(qty)}) vượt quá tồn kho hiện tại (${formatNum(currentStockClean)} ${prod.unit}). Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = cleanNum(prod.currentStock) + qty;
+      if (!prod.originalStock) prod.originalStock = currentStockClean;
       let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
       let totalCostCalculated = qty * unitCost;
 
@@ -805,7 +811,7 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng biếu vượt quá tồn kho. Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = currentStockClean + qty;
+      if (!prod.originalStock) prod.originalStock = currentStockClean;
       let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
       const costValue = qty * unitCost;
 
@@ -912,7 +918,7 @@
       const currentStockClean = cleanNum(prod.currentStock);
       if (qty > currentStockClean && !confirm(`Số lượng báo hỏng vượt quá tồn kho. Tiếp tục?`)) return;
 
-      if (!prod.originalStock) prod.originalStock = currentStockClean + qty;
+      if (!prod.originalStock) prod.originalStock = currentStockClean;
       let unitCost = cleanNum(prod.totalCost) / cleanNum(prod.originalStock);
       const costValue = qty * unitCost;
 
@@ -938,7 +944,7 @@
       }
     }
 
-    // 5. REPORTS TAB (Hiển thị Tổng lãi lỗ theo Sản phẩm & Chi tiết từng Đợt nhập)
+    // 5. REPORTS TAB
     function renderReports() {
       const container = document.getElementById('app-content');
       
@@ -952,7 +958,6 @@
         selectedReportMonth = sortedMonths.length > 0 ? sortedMonths[0] : currentMonthStr;
       }
 
-      // Lọc giao dịch theo tháng
       const filteredImports = (db.imports || []).filter(i => !selectedReportMonth || (i.date && i.date.startsWith(selectedReportMonth)));
       const filteredSales = (db.sales || []).filter(s => db.products.some(p => p.id === s.productId) && (!selectedReportMonth || (s.date && s.date.startsWith(selectedReportMonth))));
 
@@ -968,7 +973,6 @@
       filteredImports.forEach(i => productIdsInMonth.add(i.productId));
       filteredSales.forEach(s => productIdsInMonth.add(s.productId));
 
-      // 1. Gom nhóm Lãi/Lỗ tổng theo MẶT HÀNG để hiển thị ở Khung Tổng Quan
       let summaryByProductName = {};
 
       if (db.products) {
@@ -977,7 +981,7 @@
 
           let nameKey = p.name.trim();
           if (!summaryByProductName[nameKey]) {
-            summaryByProductName[nameKey] = { profit: 0, cost: 0, recovered: 0, hasActiveBatches: false };
+            summaryByProductName[nameKey] = { profit: 0, cost: 0, recovered: 0 };
           }
 
           let totalCostP = cleanNum(p.totalCost);
@@ -990,9 +994,9 @@
           } else if (totalRecoveredP >= totalCostP) {
             batchProfit = totalRecoveredP - totalCostP;
           } else if (stock === 0) {
-            batchProfit = totalRecoveredP - totalCostP; // Lỗ âm
+            batchProfit = totalRecoveredP - totalCostP;
           } else {
-            batchProfit = 0; // Đang hòa/hoàn vốn
+            batchProfit = 0;
           }
 
           totalWithdrawableProfit += batchProfit;
@@ -1030,7 +1034,7 @@
           </select>
         </div>
 
-        <!-- THẺ TỔNG HỢP LÃI LỖ TRONG THÁNG (CHỈ TỔNG THEO MẶT HÀNG) -->
+        <!-- THẺ TỔNG HỢP LÃI LỖ TRONG THÁNG -->
         <div class="bg-emerald-500 text-white rounded-2xl p-4 shadow-md mb-4 space-y-2">
           <div class="flex justify-between items-center border-b border-emerald-400/60 pb-2">
             <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center gap-1.5">
@@ -1070,7 +1074,7 @@
           </div>
         </div>
 
-        <!-- BÁO CÁO CHI TIẾT DẠNG CÂY: SẢN PHẨM -> XUỐNG DÒNG ĐỢT 1, ĐỢT 2... -->
+        <!-- BÁO CÁO CHI TIẾT TỪNG ĐỢT NHẬP (CÓ TỔNG NHẬP VÀ TỒN) -->
         <div class="space-y-3">
           <h2 class="text-sm font-semibold text-slate-500 px-1">Chi tiết theo từng Đợt nhập</h2>
       `;
@@ -1078,7 +1082,6 @@
       if (!db.products || db.products.length === 0) {
         html += `<div class="text-center py-6 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-xs">Chưa có sản phẩm nào</p></div>`;
       } else {
-        // Nhóm các đợt nhập theo Tên sản phẩm
         let reportGrouped = {};
         db.products.forEach(p => {
           if (!productIdsInMonth.has(p.id)) return;
@@ -1093,18 +1096,17 @@
           const group = reportGrouped[prodName];
           html += `
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-              <!-- Tiêu đề Sản phẩm chính -->
               <div class="border-b border-slate-100 pb-2 flex justify-between items-center">
                 <span class="font-black text-slate-900 text-base">${group.name}</span>
                 <span class="text-xs text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md">${group.batches.length} đợt nhập</span>
               </div>
 
-              <!-- Danh sách chi tiết tính toán Lãi/Lỗ từng đợt nhập bên dưới -->
               <div class="space-y-2.5">
                 ${group.batches.map(p => {
                   let totalCostP = cleanNum(p.totalCost);
                   let totalRecoveredP = cleanNum(p.recoveredRevenue);
                   let stock = cleanNum(p.currentStock);
+                  let original = cleanNum(p.originalStock || stock);
 
                   let badgeClass = '';
                   let badgeText = '';
@@ -1142,8 +1144,8 @@
                       </div>
                       <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200/50">
                         <div>
-                          <p>Tồn: <b class="text-slate-800">${formatNum(stock)} ${p.unit}</b> | Vốn: <b class="text-slate-800">${formatMoney(totalCostP)}</b></p>
-                          <p>Doanh thu đã thu: <b class="text-ios-blue">${formatMoney(totalRecoveredP)}</b></p>
+                          <p>Nhập: <b class="text-slate-800">${formatNum(original)} ${p.unit}</b> | Tồn: <b class="text-slate-800">${formatNum(stock)} ${p.unit}</b></p>
+                          <p>Vốn: <b class="text-slate-800">${formatMoney(totalCostP)}</b> | Thu: <b class="text-ios-blue">${formatMoney(totalRecoveredP)}</b></p>
                         </div>
                         <div class="text-right flex flex-col justify-center">
                           <span class="text-[10px] text-slate-400 block">Lãi/Lỗ đợt này:</span>
